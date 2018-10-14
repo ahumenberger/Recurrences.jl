@@ -1,0 +1,6 @@
+authors = ["Andreas Humenberger <ahumenberger@gmail.com>"]
+name = "Recurrences"
+uuid = "618f9978-cfe8-11e8-0262-8317e6e32198"
+version = "0.1.0"
+
+[deps]
