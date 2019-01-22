@@ -3,8 +3,10 @@ module Recurrences
 export test
 
 using SymPy
+using LinearAlgebra
 
 
+include("zuercher.jl")
 include("types.jl")
 
 greet() = print("Hello World!")
@@ -46,6 +48,9 @@ function test()
     push!(lrs, e2)
 
     display(lrs)
+    display(firstorder(lrs))
+    display(homogenize!(lrs))
+    display(decouple(lrs))
 end
 
 end # module
