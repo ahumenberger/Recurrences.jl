@@ -27,6 +27,7 @@ struct LinearRecSystem{T}
 end
 
 LinearRecSystem(arg::T) where {T} = LinearRecSystem{T}([], arg, [], [])
+LinearRecSystem(funcs::Vector{T}, arg::T, mat::Vector{Matrix{T}}) where {T} = LinearRecSystem{T}(funcs, arg, mat, zeros(T, size(mat[1], 1)))
 
 order(lrs::LinearRecSystem) = length(lrs.mat) - 1
 nrows(lrs::LinearRecSystem) = length(lrs.mat) == 0 ? 0 : size(lrs.mat[1], 1)
@@ -112,13 +113,16 @@ end
 function decouple(lrs::LinearRecSystem{T}) where T
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     homogenize!(lrs)
+    minv = inv(lrs.mat[2])
+    matr = [m * minv for m in lrs.mat]
+    # @info "Matrices" matr
     σ = x -> x |> subs(lrs.arg, lrs.arg+1)
     σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
     δ = x -> σ(x) - x
-    C, A = rational_form(copy(lrs.mat[1]), σ, σinv, δ)
-    @info "rational form" C A
-    @info inv(A)*lrs.mat[1]*A
-    # LinearRecSystem(s.n, s.vars, C)
+    C, A = rational_form(copy(matr[1]), σ, σinv, δ)
+    # @info "rational form" C A
+    # @info "" inv(A)*lrs.mat[1]*A
+    LinearRecSystem(lrs.funcs, lrs.arg, [inv(A)*lrs.mat[1]*A, matr[2]])
 end
 
 var_count = 0
