@@ -51,7 +51,7 @@ function Base.push!(lrs::LinearRecSystem{T}, entry::LinearEntry{T}) where {T}
             lrs.mat[i] = hcat(m, zeros(T, size(m, 1), newfuncslen))
         end
     end
-    # increas order if necessary - add new matrix
+    # increase order if necessary - add new matrix
     orderdiff = length(entry.coeffs) - length(lrs.mat)
     if orderdiff > 0
         for _ in 1:orderdiff
@@ -71,7 +71,13 @@ function Base.push!(lrs::LinearRecSystem{T}, entry::LinearEntry{T}) where {T}
         # @info "Test" lrs.mat[i] row
         lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
     end
+    row = zeros(T, length(lrs.funcs))
+    for i in length(entry.coeffs)+1:length(lrs.mat)
+        lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
+    end
     push!(lrs.inhom, entry.inhom)
+
+    # @info "LinearRecSystem" lrs.funcs lrs.mat lrs.inhom
 end
 
 function firstorder(lrs::LinearRecSystem{T}) where {T}
@@ -99,7 +105,7 @@ function homogenize!(lrs::LinearRecSystem{T}) where T
     n = length(lrs.funcs)
 
     lrs.mat[1] = vcat(hcat(lrs.mat[1], lrs.inhom * (-1)), zeros(T, 1, n))
-    lrs.mat[1][n,n] = 1
+    lrs.mat[1][n,n] = -1
     for i in 2:length(lrs.mat)
         lrs.mat[i] = vcat(hcat(lrs.mat[i], zeros(T, n-1)), zeros(T, 1, n))
         lrs.mat[i][n,n] = 1
@@ -115,14 +121,31 @@ function decouple(lrs::LinearRecSystem{T}) where T
     homogenize!(lrs)
     minv = inv(lrs.mat[2])
     matr = [m * minv for m in lrs.mat]
-    # @info "Matrices" matr
     σ = x -> x |> subs(lrs.arg, lrs.arg+1)
     σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
     δ = x -> σ(x) - x
-    C, A = rational_form(copy(matr[1]), σ, σinv, δ)
-    # @info "rational form" C A
-    # @info "" inv(A)*lrs.mat[1]*A
-    LinearRecSystem(lrs.funcs, lrs.arg, [inv(A)*lrs.mat[1]*A, matr[2]])
+    C, A = rational_form(copy(-matr[1]), σ, σinv, δ)
+    A = -A
+    # @info "Zürcher" C A inv(A)
+
+    newlrs = LinearRecSystem(lrs.arg)
+
+    auxcoeff = [C[end,:]; -1] |> subs(lrs.arg, lrs.arg + size(C, 1))
+    p = Polynomials.Poly(auxcoeff)
+
+    for i in 1:size(C, 1)
+        q = Polynomials.Poly(A[i,:])
+        d, r = divrem(p,q)
+        @assert r == 0 "Remainder not zero"
+        v = Polynomials.coeffs(d)
+        k = fill(lrs.funcs[i], length(v))
+        d = [Dict([c]) for c in zip(k,v)]
+        entry = (coeffs = d, inhom = T(0))
+        push!(newlrs, entry)
+        # @info "New LRS" newlrs
+    end
+
+    newlrs
 end
 
 var_count = 0
@@ -164,16 +187,24 @@ function Base.show(io::IO, lrs::LinearRecSystem)
     mstr = sprint.(Base.print_matrix, lrs.mat)
     inhom = sprint(Base.print_matrix, lrs.inhom)
     arr = [space(h), lp, mstr[1], rp, lp, funcstr(funcs, "$(arg)")]
+
     for i in 2:length(mstr)
         push!(arr, rp, pl, lp, mstr[i], rp, lp, funcstr(funcs, "$(arg)+$(i-1)"))
     end
     push!(arr, rp, eq, lp, inhom, rp)
 
     println(io, "$(typeof(lrs)) of order $(order(lrs)):")
-    print(io, mergestr(arr...))
+    if h == 1
+        print(io, join(arr))
+    else
+        print(io, mergestr(arr...))
+    end
 end
 
 function mergestr(strings::String...)
     splits = split.(strings, "\n")
-    join(join.(zip(splits...)), "\n")
+    rows = length(splits[1])
+    cols = length(splits)
+    matr = reshape(collect(Iterators.flatten(splits)), rows, cols)
+    join([join(matr[i,:]) for i in 1:size(matr, 1)], "\n")
 end
