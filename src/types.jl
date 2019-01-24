@@ -212,3 +212,17 @@ function mergestr(strings::String...)
     matr = reshape(collect(Iterators.flatten(splits)), rows, cols)
     join([join(matr[i,:]) for i in 1:size(matr, 1)], "\n")
 end
+
+function Base.show(io::IO, entry::LinearEntry{T}) where {T}
+    arg = "n" # random function argument
+    arr = String[]
+    for (i, c) in enumerate(entry.coeffs)
+        for (k, v) in c
+            argstr = i == 1 ? arg : string(arg, "+$(i-1)")
+            push!(arr, "$(v)*$(k)($(argstr))")
+        end
+    end
+    str = string(" ", join(arr, " + "), " = $(entry.inhom)")
+    println(io, "LinearEntry{$(T)} with default argument $(arg):")
+    print(io, str)
+end
