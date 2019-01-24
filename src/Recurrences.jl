@@ -51,7 +51,8 @@ function test()
     display(lrs)
     display(firstorder(lrs))
     display(homogenize!(lrs))
-    display(decouple(lrs))
+    lrs = decouple(lrs)
+    display(lrs)
 
 
     # firstorder(lrs)

@@ -33,6 +33,7 @@ order(lrs::LinearRecSystem) = length(lrs.mat) - 1
 nrows(lrs::LinearRecSystem) = length(lrs.mat) == 0 ? 0 : size(lrs.mat[1], 1)
 nfuncs(lrs::LinearRecSystem) = length(lrs.funcs)
 ishomogeneous(lrs::LinearRecSystem) = iszero(lrs.inhom)
+isdecoupled(lrs::LinearRecSystem) = all(iszero.([m - Diagonal(m) for m in lrs.mat]))
 
 const LinearEntry{T} = NamedTuple{(:coeffs, :inhom), Tuple{Vector{Dict{T,T}}, T}}
 
@@ -117,6 +118,9 @@ function homogenize!(lrs::LinearRecSystem{T}) where T
 end
 
 function decouple(lrs::LinearRecSystem{T}) where T
+    if isdecoupled(lrs)
+        return lrs
+    end
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     homogenize!(lrs)
     minv = inv(lrs.mat[2])
