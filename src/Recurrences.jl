@@ -1,16 +1,24 @@
 module Recurrences
 
-export test
+export test, test2, test3
 
 using SymPy
+using PyCall
 using LinearAlgebra
 using Polynomials
 
 
 include("zuercher.jl")
 include("types.jl")
+include("sympy.jl")
 
 greet() = print("Hello World!")
+
+const AppliedUndef = PyCall.PyNULL()
+
+function __init__()
+    copy!(AppliedUndef, PyCall.pyimport_conda("sympy.core.function", "sympy")[:AppliedUndef])
+end
 
 function test()
 
@@ -58,6 +66,63 @@ function test()
     # firstorder(lrs)
     # homogenize!(lrs)
     # decouple(lrs)
+end
+
+function test2()
+    @vars a b c d e
+    @vars x y
+    @vars n
+
+    # q = a*c*e/(d*(b*d + c*e - e*(a + c) + e)) + c/d + e*(-a - c)/(d*(b*d + c*e - e*(a + c) + e)) - 1/d*x + e/(d*(b*d + c*e - e*(a + c) + e))*x^2
+    # q = simplify(q)
+    # p = a*c + -a*c - a - c*x + a + c + 1*x^2 + -1*x^3
+
+    # @info "" p q
+    # q = -a*e*x + a*e - b*c*d + b*d*x - e*x^2 + e*x
+    # @info "" q
+    # @info "" divrem(Polynomials.Poly(SymPy.coeffs(p)), Polynomials.Poly(SymPy.coeffs(q)))
+
+    # @info "" simplify(c + (1 - (-a*e + b*d + e)/e)*(a*e - b*c*d)/e + -c + (1 - (-a*e + b*d + e)/e)*(-a*e + b*d + e)/e - (a*e - b*c*d)/e*x)
+
+    d1 = [Dict(x => Sym(-a)), Dict(x => Sym(1))]
+    # e1 = (coeffs = d1, inhom = b)
+    e1 = (coeffs = d1, inhom = Sym(0))
+    d2 = [Dict(y => Sym(-c)), Dict(y => Sym(1), x => Sym(-d))]
+    # e2 = (coeffs = d2, inhom = e)
+    e2 = (coeffs = d2, inhom = Sym(0))
+    @info "Linear entries" e1 e2
+
+    lrs = LinearRecSystem(n)
+    push!(lrs, e2)
+    push!(lrs, e1)
+    @info "Linear rec system" lrs
+
+    lrs = decouple(lrs)
+    @info "Decoupled" lrs
+end
+
+function test3()
+    @vars a b c d e
+    @vars x y
+    @vars n
+
+
+
+    d1 = [Dict(x => Sym(-2)), Dict(x => Sym(1))]
+    # e1 = (coeffs = d1, inhom = b)
+    e1 = (coeffs = d1, inhom = Sym(0))
+    d2 = [Dict(y => Sym(-3), x => Sym(-4)), Dict(y => Sym(1))]
+    # e2 = (coeffs = d2, inhom = e)
+    e2 = (coeffs = d2, inhom = Sym(0))
+    @info "Linear entries" e1 e2
+
+    lrs = LinearRecSystem(n)
+    push!(lrs, e2)
+    push!(lrs, e1)
+    @info "Linear rec system" lrs
+
+    lrs = decouple(lrs)
+    @info "Decoupled" lrs
 end
 
 end # module
