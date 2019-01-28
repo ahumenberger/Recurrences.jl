@@ -191,10 +191,10 @@ function Base.show(io::IO, lrs::LinearRecSystem)
     arg = string(lrs.arg)
     mstr = sprint.(Base.print_matrix, lrs.mat)
     inhom = sprint(Base.print_matrix, lrs.inhom)
-    arr = [space(h), lp, mstr[1], rp, lp, funcstr(funcs, "$(arg)")]
+    arr = [space(h), lp, mstr[end], rp, lp, funcstr(funcs, "$(arg)+$(length(mstr) - 1)")]
 
-    for i in 2:length(mstr)
-        push!(arr, rp, pl, lp, mstr[i], rp, lp, funcstr(funcs, "$(arg)+$(i-1)"))
+    for i in length(mstr)-1:-1:1
+        push!(arr, rp, pl, lp, mstr[i], rp, lp, funcstr(funcs, i == 1 ? arg : "$(arg)+$(i-1)"))
     end
     push!(arr, rp, eq, lp, inhom, rp)
 
