@@ -6,7 +6,7 @@ using SymPy
 using PyCall
 using LinearAlgebra
 using Polynomials
-
+using MacroTools
 
 include("zuercher.jl")
 include("types.jl")

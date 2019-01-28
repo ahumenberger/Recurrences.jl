@@ -39,45 +39,46 @@ const LinearEntry{T} = NamedTuple{(:coeffs, :inhom), Tuple{Vector{Dict{T,T}}, T}
 
 findelem(A, e) = findfirst(x -> x == e, A)
 
-function Base.push!(lrs::LinearRecSystem{T}, entry::LinearEntry{T}) where {T}
-    # get all function symbols not occurring in lrs
-    newfuncs = setdiff(Iterators.flatten(keys.(entry.coeffs)), lrs.funcs)
-    # resize matrices 
-    newfuncslen = length(newfuncs)
-    # @info "" newfuncslen
-    if newfuncslen > 0
-        append!(lrs.funcs, newfuncs)
-        # @info "" lrs.funcs newfuncs
-        for (i, m) in enumerate(lrs.mat)
-            lrs.mat[i] = hcat(m, zeros(T, size(m, 1), newfuncslen))
+function Base.push!(lrs::LinearRecSystem{T}, entries::LinearEntry{T}...) where {T}
+    for entry in entries
+        # get all function symbols not occurring in lrs
+        newfuncs = setdiff(Iterators.flatten(keys.(entry.coeffs)), lrs.funcs)
+        # resize matrices
+        newfuncslen = length(newfuncs)
+        # @info "" newfuncslen
+        if newfuncslen > 0
+            append!(lrs.funcs, newfuncs)
+            # @info "" lrs.funcs newfuncs
+            for (i, m) in enumerate(lrs.mat)
+                lrs.mat[i] = hcat(m, zeros(T, size(m, 1), newfuncslen))
+            end
         end
-    end
-    # increase order if necessary - add new matrix
-    orderdiff = length(entry.coeffs) - length(lrs.mat)
-    if orderdiff > 0
-        for _ in 1:orderdiff
-            push!(lrs.mat, zeros(T, nrows(lrs), nfuncs(lrs)))
+        # increase order if necessary - add new matrix
+        orderdiff = length(entry.coeffs) - length(lrs.mat)
+        if orderdiff > 0
+            for _ in 1:orderdiff
+                push!(lrs.mat, zeros(T, nrows(lrs), nfuncs(lrs)))
+            end
         end
-    end
-    # add entries to matrices
-    for (i, dict) in enumerate(entry.coeffs)
+        # add entries to matrices
+        for (i, dict) in enumerate(entry.coeffs)
+            row = zeros(T, length(lrs.funcs))
+            for (key, val) in dict
+                # key should be contained in lrs.funcs
+                idx = findelem(lrs.funcs, key)
+                # @info lrs.funcs
+                @assert idx != nothing
+                row[idx] = val
+            end
+            # @info "Test" lrs.mat[i] row
+            lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
+        end
         row = zeros(T, length(lrs.funcs))
-        for (key, val) in dict
-            # key should be contained in lrs.funcs
-            idx = findelem(lrs.funcs, key)
-            # @info lrs.funcs
-            @assert idx != nothing
-            row[idx] = val
+        for i in length(entry.coeffs)+1:length(lrs.mat)
+            lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
         end
-        # @info "Test" lrs.mat[i] row
-        lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
+        push!(lrs.inhom, entry.inhom)
     end
-    row = zeros(T, length(lrs.funcs))
-    for i in length(entry.coeffs)+1:length(lrs.mat)
-        lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
-    end
-    push!(lrs.inhom, entry.inhom)
-
     # @info "LinearRecSystem" lrs.funcs lrs.mat lrs.inhom
 end
 

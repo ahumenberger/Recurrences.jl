@@ -1,7 +1,26 @@
-export @rec
+export @rec, @lrs
+
+macro lrs(input)
+    entries = LinearEntry{SymPy.Sym}[]
+    args = SymPy.Sym[]
+    @capture(input, begin fields__ end)
+    for ex in fields
+        @capture(ex, lhs_ = rhs_)
+        lhs = SymPy.Sym(string(lhs))
+        rhs = SymPy.Sym(string(unblock(rhs)))
+        entry, arg = LinearRecEntry(lhs - rhs)
+        push!(entries, entry)
+        push!(args, arg)
+    end
+    args = Base.unique(args)
+    @assert length(args) == 1 "More than one function argument, got $(args)"
+    sys = LinearRecSystem(args[1])
+    push!(sys, entries...)
+    sys
+end
 
 macro rec(expr)
-    LinearRecEntry(SymPy.Sym(string(expr)))
+    LinearRecEntry(SymPy.Sym(string(expr)))[1]
 end
 
 function function_symbols(expr::SymPy.Sym)
@@ -42,5 +61,5 @@ function LinearRecEntry(expr::SymPy.Sym)
         end
     end
 
-    (coeffs = dicts, inhom = -(expr - hom))
+    (coeffs = dicts, inhom = -(expr - hom)), farg
 end
