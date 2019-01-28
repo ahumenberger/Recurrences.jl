@@ -163,8 +163,11 @@ function unique(::Type{Sym}, n::Int = 1)
     return [Sym("ω$i") for i in var_count-n+1:var_count]
 end
 
-lpar(h::Int, d = "") = h == 1 ? "[$(d)" : join(["╭$(d)"; fill("│$(d)", h-2); "╰$(d)"], "\n")
-rpar(h::Int, d = "") = h == 1 ? "$(d)]" : join(["$(d)╮"; fill("$(d)│", h-2); "$(d)╯"], "\n")
+# lpar(h::Int, d = "") = h == 1 ? "[$(d)" : join(["╭$(d)"; fill("│$(d)", h-2); "╰$(d)"], "\n")
+# rpar(h::Int, d = "") = h == 1 ? "$(d)]" : join(["$(d)╮"; fill("$(d)│", h-2); "$(d)╯"], "\n")
+lpar(h::Int, d = "") = h == 1 ? "[$(d)" : join(["⎛$(d)"; fill("⎜$(d)", h-2); "⎝$(d)"], "\n")
+rpar(h::Int, d = "") = h == 1 ? "$(d)]" : join(["$(d)⎞"; fill("$(d)⎟", h-2); "$(d)⎠"], "\n")
+
 space(h::Int) = join(fill(" ", h), "\n")
 function symstr(h::Int, symbol::String)
     a = fill("   ", h)
