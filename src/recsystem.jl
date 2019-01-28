@@ -1,23 +1,5 @@
-export Recurrence, LinearRecurrence, CFiniteRecurrence, LinearRecSystem
-
-abstract type Recurrence end
-abstract type LinearRecurrence <: Recurrence end
-
-struct CFiniteRecurrence{T} <: LinearRecurrence
-    func::T
-    arg::T
-    coeffs::Vector{T}
-    inhom::T
-
-    function CFiniteRecurrence{T}(func::T, arg::T, coeffs::Vector{T}, inhom::T = T(0)) where {T}
-        if !all(is_constant.(coeffs))
-            error("Not a C-finite recurrence.")
-        end
-        new{T}(func, arg, coeffs, inhom)
-    end
-end
-
-# ------------------------------------------------------------------------------
+export LinearRecSystem
+export decouple, homogenize!
 
 struct LinearRecSystem{T}
     funcs::Vector{T}
@@ -131,7 +113,11 @@ function decouple(lrs::LinearRecSystem{T}) where T
     δ = x -> σ(x) - x
     C, A = rational_form(copy(-matr[1]), σ, σinv, δ)
     A = -A
+    if !iszero(C[1:end-1,2:end] - UniformScaling(1))
+        @error "Fix needed! Not a companion matrix: $C"
+    end
     # @info "Zürcher" C A inv(A)
+    # @info "" inv(A) * -matr[1] * A
 
     newlrs = LinearRecSystem(lrs.arg)
 

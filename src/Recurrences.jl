@@ -9,7 +9,8 @@ using Polynomials
 using MacroTools
 
 include("zuercher.jl")
-include("types.jl")
+include("recs.jl")
+include("recsystem.jl")
 include("sympy.jl")
 
 greet() = print("Hello World!")
