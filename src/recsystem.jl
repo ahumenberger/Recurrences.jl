@@ -1,5 +1,5 @@
 export LinearRecSystem
-export decouple, homogenize!
+export decouple, homogenize!, solve
 
 struct LinearRecSystem{T}
     funcs::Vector{T}
@@ -80,7 +80,7 @@ function firstorder(lrs::LinearRecSystem{T}) where {T}
     LinearRecSystem(funcs, lrs.arg, [mat], lrs.inhom)
 end
 
-function homogenize!(lrs::LinearRecSystem{T}) where T
+function homogenize!(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     if ishomogeneous(lrs)
         return lrs
@@ -100,10 +100,7 @@ function homogenize!(lrs::LinearRecSystem{T}) where T
     lrs
 end
 
-function decouple(lrs::LinearRecSystem{T}) where T
-    if isdecoupled(lrs)
-        return lrs
-    end
+function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     homogenize!(lrs)
     minv = inv(lrs.mat[2])
@@ -111,32 +108,65 @@ function decouple(lrs::LinearRecSystem{T}) where T
     σ = x -> x |> subs(lrs.arg, lrs.arg+1)
     σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
     δ = x -> σ(x) - x
+    @info "Zürcher input" -matr[1]
     C, A = rational_form(copy(-matr[1]), σ, σinv, δ)
     A = -A
     if !iszero(C[1:end-1,2:end] - UniformScaling(1))
         @error "Fix needed! Not a companion matrix: $C"
     end
-    # @info "Zürcher" C A inv(A)
-    # @info "" inv(A) * -matr[1] * A
-
-    newlrs = LinearRecSystem(lrs.arg)
-
-    auxcoeff = [C[end,:]; -1] |> subs(lrs.arg, lrs.arg + size(C, 1))
-    p = Polynomials.Poly(auxcoeff)
-
-    for i in 1:size(C, 1)
-        q = Polynomials.Poly(A[i,:])
-        d, r = divrem(p,q)
-        @assert r == 0 "Remainder not zero"
-        v = Polynomials.coeffs(d)
-        k = fill(lrs.funcs[i], length(v))
-        d = [Dict([c]) for c in zip(k,v)]
-        entry = (coeffs = d, inhom = T(0))
-        push!(newlrs, entry)
-        # @info "New LRS" newlrs
+    if !istril(A)
+        @warn "A is not lower triangular, got $(A)"
     end
+    @info "Zürcher" C A inv(A)
+    @info "" inv(A) * -matr[1] * A
 
-    newlrs
+    # newlrs = LinearRecSystem(lrs.arg)
+    # TODO: Assuming A is always lower triangular. Check whether that is true!
+
+
+    # p = Polynomials.Poly(auxcoeff)
+
+    # for i in 1:size(C, 1)
+    #     q = Polynomials.Poly(A[i,:])
+    #     d, r = divrem(p,q)
+    #     @assert r == 0 "Remainder not zero"
+    #     v = Polynomials.coeffs(d)
+    #     k = fill(lrs.funcs[i], length(v))
+    #     d = [Dict([c]) for c in zip(k,v)]
+    #     entry = (coeffs = d, inhom = T(0))
+    #     push!(newlrs, entry)
+    #     # @info "New LRS" newlrs
+    # end
+
+    # newlrs
+    C, A
+end
+
+function solve(lrs::LinearRecSystem{T}) where {T}
+    cforms = CFiniteClosedForm[]
+    if isdecoupled(lrs) && ishomogeneous(lrs)
+        diagonals = [Diagonal(m) for m in lrs.mat]
+        for i in 1:nrows(lrs)
+            coeffs = [diagonals[j][i] for j in 1:length(lrs.mat)]
+            rec = CFiniteRecurrence(lrs.funcs[i], lrs.arg, coeffs)
+            cf = closedform(rec)
+            push!(cforms, cf)
+        end
+    else
+        C, A = decouple(lrs)
+        coeff = C[1,1]
+        coeffs = ([C[end,:]; -1] ./ coeff) |> subs(lrs.arg, lrs.arg + size(C, 1))
+        rec = CFiniteRecurrence(lrs.funcs[1], lrs.arg, coeffs)
+        cf = closedform(rec)
+        cforms = [cf]
+        @info "Closed form" cf
+        for i in 2:size(C, 1)
+            coeffs = reverse(A[i,:]) ./ coeff
+            cform = sum(c * cf(cf.func - j) for (j, c) in enumerate(coeffs))
+            push!(cforms, cf)
+        end
+    end
+    cforms
 end
 
 var_count = 0
