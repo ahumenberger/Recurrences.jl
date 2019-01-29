@@ -211,7 +211,7 @@ function transform_lemma5(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
         B[j,n] *= a # basis change
     end
 
-    for l in i+1:n
+    for l in i+1:n-1
         if T[l,i0] != 0
             a = T[l,i0]
             for j in i+1:n
@@ -232,6 +232,6 @@ function transform_lemma5(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
     for j in i0:i
         T, B = transform_lemma4(T, i0, i, j, σ, σ_inv, δ, B)
     end
-    
+
     return T, B
 end
