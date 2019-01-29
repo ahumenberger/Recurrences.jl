@@ -1,4 +1,5 @@
 export Recurrence, LinearRecurrence, CFiniteRecurrence, CFiniteClosedForm
+export closedform
 
 abstract type Recurrence end
 abstract type LinearRecurrence <: Recurrence end
@@ -9,7 +10,7 @@ struct CFiniteRecurrence{T} <: LinearRecurrence
     coeffs::Vector{T}
     inhom::T
 
-    function CFiniteRecurrence{T}(func::T, arg::T, coeffs::Vector{T}, inhom::T = T(0)) where {T}
+    function CFiniteRecurrence(func::T, arg::T, coeffs::Vector{T}, inhom::T = T(0)) where {T}
         if !all(is_constant.(coeffs))
             error("Not a C-finite recurrence.")
         end
@@ -27,6 +28,42 @@ struct CFiniteClosedForm{T}
     rvec::Vector{T}
     xvec::Vector{T}
     initvec::Vector{T}
+    instance::T # instantiate closed form, yields a closed form where `arg` is replaced by `instance`
+end
+
+CFiniteClosedForm(func::T, arg::T, mvec::Vector{T}, rvec::Vector{T}, xvec::Vector{T}, initvec::Vector{T}) where {T} = CFiniteClosedForm(func, arg, mvec, rvec, xvec, initvec, arg)
+
+function Base.:*(cf::CFiniteClosedForm{T}, coeff::Number) where {T}
+    xvec = coeff .* cf.xvec
+    CFiniteClosedForm(cf.func, cf.arg, cf.mvec, cf.rvec, xvec, cf.initvec, cf.instance)
+end
+Base.:*(coeff::Number, cf::CFiniteClosedForm{T}) where {T} = cf*coeff
+
+function Base.:+(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T}
+    @assert cf1.arg == cf2.arg "Argument mismatch, got $(cf1.arg) and $(cf2.arg)"
+    cf1, cf2 = backshift(cf1), backshift(cf2)
+    mvec = [cf1.mvec; cf2.mvec]
+    rvec = [cf1.rvec; cf2.rvec]
+    xvec = [cf1.xvec; cf2.xvec]
+    initvec = [cf1.initvec; cf2.initvec]
+    CFiniteClosedForm(cf1.func, cf1.arg, mvec, rvec, xvec, initvec)
+end
+Base.:-(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T} = cf1 + (-1) * cf2
+
+function (c::CFiniteClosedForm{T})(n::Union{Int, T}) where {T}
+    CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, c.xvec, c.initvec, subs(c.instance, c.arg, n))
+end
+
+function backshift(c::CFiniteClosedForm{T}) where {T}
+    if has(c.instance, c.arg)
+        shift = c.instance - c.arg
+        xvec = c.xvec .* (c.rvec .^ shift)
+        rvec = c.rvec
+    else
+        xvec = c.xvec .* (c.rvec .^ c.instance)
+        rvec = fill(T(1), length(c.rvec))
+    end
+    CFiniteClosedForm(c.func, c.arg, c.mvec, rvec, xvec, c.initvec)
 end
 
 function mroots(poly::Polynomials.Poly{T}) where {T}
@@ -59,7 +96,6 @@ function mroots(p::Polynomials.Poly{SymPy.Sym})
     companion[:eigenvals]()
 end
 
-
 function closedform(rec::CFiniteRecurrence{T}) where {T}
 
     # TODO: allow inhomogeneous recurrences?
@@ -71,14 +107,14 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     rvec = [z for (z, m) in roots for _ in 0:m - 1] # roots
 
     A = [i^m * r^i for i in 0:size-1, (r, m) in zip(rvec, mvec)]
-    b = [T(string(string(rec.func), i)) for i in 0:size - 1] 
+    b = [T("$(string(rec.func))_$(i)") for i in 0:size - 1] 
     # @info "Ansatz" A b A\b
     CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
 end
 
 function Base.show(io::IO, cf::CFiniteClosedForm)
-    vec = [cf.arg^m * r^cf.arg for (r, m) in zip(cf.rvec, cf.mvec)]
+    vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
     res = simplify(transpose(vec) * cf.xvec)
     println(io, "$(typeof(cf)):")
-    print(io, " $(cf.func)($(cf.arg)) = $(string(res))")
+    print(io, " $(cf.func)($(cf.instance)) = $(string(res))")
 end
