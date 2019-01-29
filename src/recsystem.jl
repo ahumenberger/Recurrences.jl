@@ -108,21 +108,12 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     σ = x -> x |> subs(lrs.arg, lrs.arg+1)
     σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
     δ = x -> σ(x) - x
-    @info "Zürcher input" -matr[1]
     C, A = rational_form(copy(-matr[1]), σ, σinv, δ)
     A = -A
     if !iszero(C[1:end-1,2:end] - UniformScaling(1))
-        @error "Fix needed! Not a companion matrix: $C"
-    end
-    if !istril(A)
-        @warn "A is not lower triangular, got $(A)"
+        @error "Fix needed! Not a companion matrix:" C
     end
     @info "Zürcher" C A inv(A)
-    @info "" inv(A) * -matr[1] * A
-
-    # newlrs = LinearRecSystem(lrs.arg)
-    # TODO: Assuming A is always lower triangular. Check whether that is true!
-
 
     # p = Polynomials.Poly(auxcoeff)
 
@@ -138,7 +129,6 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     #     # @info "New LRS" newlrs
     # end
 
-    # newlrs
     C, A
 end
 
@@ -154,16 +144,14 @@ function solve(lrs::LinearRecSystem{T}) where {T}
         end
     else
         C, A = decouple(lrs)
-        coeff = C[1,1]
-        coeffs = ([C[end,:]; -1] ./ coeff) |> subs(lrs.arg, lrs.arg + size(C, 1))
-        rec = CFiniteRecurrence(lrs.funcs[1], lrs.arg, coeffs)
+        coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))
+        rec = CFiniteRecurrence(unique(T), lrs.arg, coeffs)
         cf = closedform(rec)
-        cforms = [cf]
         @info "Closed form" cf
-        for i in 2:size(C, 1)
-            coeffs = reverse(A[i,:]) ./ coeff
+        for i in 1:size(C, 1)
+            coeffs = reverse(A[i,:])
             cform = sum(c * cf(cf.func - j) for (j, c) in enumerate(coeffs))
-            push!(cforms, cf)
+            push!(cforms, cform)
         end
     end
     cforms
@@ -181,8 +169,8 @@ end
 
 # lpar(h::Int, d = "") = h == 1 ? "[$(d)" : join(["╭$(d)"; fill("│$(d)", h-2); "╰$(d)"], "\n")
 # rpar(h::Int, d = "") = h == 1 ? "$(d)]" : join(["$(d)╮"; fill("$(d)│", h-2); "$(d)╯"], "\n")
-lpar(h::Int, d = "") = h == 1 ? "[$(d)" : join(["⎛$(d)"; fill("⎜$(d)", h-2); "⎝$(d)"], "\n")
-rpar(h::Int, d = "") = h == 1 ? "$(d)]" : join(["$(d)⎞"; fill("$(d)⎟", h-2); "$(d)⎠"], "\n")
+lpar(h::Int, d = "") = h == 1 ? "($(d)" : join(["⎛$(d)"; fill("⎜$(d)", h-2); "⎝$(d)"], "\n")
+rpar(h::Int, d = "") = h == 1 ? "$(d))" : join(["$(d)⎞"; fill("$(d)⎟", h-2); "$(d)⎠"], "\n")
 
 space(h::Int) = join(fill(" ", h), "\n")
 function symstr(h::Int, symbol::String)
