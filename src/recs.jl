@@ -21,6 +21,11 @@ end
 coeffs(r::CFiniteRecurrence) = r.coeffs
 order(r::CFiniteRecurrence) = length(r.coeffs) - 1
 
+function Base.show(io::IO, r::CFiniteRecurrence)
+    res = join(["$(c) * $(r.func)($(r.arg + (i - 1)))" for (i, c) in enumerate(r.coeffs)], " + ")
+    print(io, "$(res) = $(r.inhom)")
+end
+
 struct CFiniteClosedForm{T}
     func::T
     arg::T
@@ -109,6 +114,7 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     size = order(rec)
     mvec = [T(i) for (_, m) in roots for i in 0:m - 1] # multiplicities
     rvec = [z for (z, m) in roots for _ in 0:m - 1] # roots
+    @debug "Roots of characteristic polynomial" collect(zip(rvec, mvec))
 
     A = [i^m * r^i for i in 0:size-1, (r, m) in zip(rvec, mvec)]
     b = [initvariable(rec.func, i) for i in 0:size - 1] 
@@ -119,6 +125,11 @@ end
 function Base.show(io::IO, cf::CFiniteClosedForm)
     vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
     res = simplify(transpose(vec) * cf.xvec)
-    println(io, "$(typeof(cf)):")
-    print(io, " $(cf.func)($(cf.instance)) = $(string(res))")
+    print(io, " $(cf.func)($(cf.instance)) = $(res)")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cf::CFiniteClosedForm)
+    summary(io, cf)
+    println(io, ":")
+    show(io, cf)
 end
