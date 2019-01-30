@@ -1,5 +1,5 @@
 export Recurrence, LinearRecurrence, CFiniteRecurrence, CFiniteClosedForm
-export closedform
+export closedform, expression
 
 abstract type Recurrence end
 abstract type LinearRecurrence <: Recurrence end
@@ -122,11 +122,12 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
 end
 
-function Base.show(io::IO, cf::CFiniteClosedForm)
+function expression(cf::CFiniteClosedForm)
     vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
-    res = simplify(transpose(vec) * cf.xvec)
-    print(io, " $(cf.func)($(cf.instance)) = $(res)")
+    simplify(transpose(vec) * cf.xvec)
 end
+
+Base.show(io::IO, cf::CFiniteClosedForm) = print(io, " $(cf.func)($(cf.instance)) = $(expression(cf))")
 
 function Base.show(io::IO, ::MIME"text/plain", cf::CFiniteClosedForm)
     summary(io, cf)
