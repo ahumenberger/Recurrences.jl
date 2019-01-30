@@ -80,13 +80,19 @@ function firstorder(lrs::LinearRecSystem{T}) where {T}
     LinearRecSystem(funcs, lrs.arg, [mat], lrs.inhom)
 end
 
+Base.copy(lrs::LinearRecSystem) = LinearRecSystem(copy(lrs.funcs), lrs.arg, copy(lrs.mat), copy(lrs.inhom))
+
+function homogenize(lrs::LinearRecSystem)
+    homogenize!(copy(lrs))
+end
+
 function homogenize!(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     if ishomogeneous(lrs)
         return lrs
     end
-    push!(lrs.funcs, unique(T))
-    n = length(lrs.funcs)
+
+    n = length(lrs.funcs) + 1
 
     lrs.mat[1] = vcat(hcat(lrs.mat[1], lrs.inhom * (-1)), zeros(T, 1, n))
     lrs.mat[1][n,n] = -1
@@ -95,6 +101,7 @@ function homogenize!(lrs::LinearRecSystem{T}) where {T}
         lrs.mat[i][n,n] = 1
     end
     
+    push!(lrs.funcs, unique(T))
     push!(lrs.inhom, 0)
     fill!(lrs.inhom, 0)
     lrs
@@ -102,18 +109,17 @@ end
 
 function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
-    homogenize!(lrs)
-    minv = inv(lrs.mat[2])
-    matr = [m * minv for m in lrs.mat]
+    @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
+    # lrs = homogenize(lrs)
     σ = x -> x |> subs(lrs.arg, lrs.arg+1)
     σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
     δ = x -> σ(x) - x
-    C, A = rational_form(copy(-matr[1]), σ, σinv, δ)
-    A = -A
+    C, A = rational_form(copy(-lrs.mat[1]), σ, σinv, δ)
+    # A = -A
     if !iszero(C[1:end-1,2:end] - UniformScaling(1))
         @error "Fix needed! Not a companion matrix:" C
     end
-    @debug "Zürcher" input=-matr[1] C A inv(A)
+    @debug "Zürcher" input=-lrs.mat[1] C A inv(A)
 
     # p = Polynomials.Poly(auxcoeff)
 
@@ -143,6 +149,7 @@ function solve(lrs::LinearRecSystem{T}) where {T}
             push!(cforms, cf)
         end
     else
+        lrs, oldlrs = homogenize(lrs), lrs
         C, A = decouple(lrs)
         coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))
         if all(is_constant.(coeffs))
@@ -152,16 +159,22 @@ function solve(lrs::LinearRecSystem{T}) where {T}
             @error "Only C-finite recurrences supported by now"
         end
         rec = RecurrenceT(unique(T), lrs.arg, coeffs)
+        @debug "Reference recurrence" rec
         cf = closedform(rec)
         @debug "Closed form of reference recurrence" cf
         initvec = [initvariable(f, 0) for f in lrs.funcs]
+        if lrs.funcs != oldlrs.funcs
+            # Assume lrs got homogenized, therefore initial value of introduced variable is 1
+            initvec[end] = T(1)
+        end
         initsubs = Dict(zip(cf.initvec, inv(A) * initvec))
         @debug "Rules for substitution of initial values" initsubs
         cf = init(cf, initsubs)
         @debug "Closed form after substitution of initial values" cf
-        for i in 1:size(C, 1)
-            coeffs = reverse(A[i,:])
-            cform = sum(c * cf(cf.arg - j) for (j, c) in enumerate(coeffs))
+        # Compute only solutions for recurrences in original system
+        for i in 1:length(oldlrs.funcs)
+            coeffs = A[i,:]
+            cform = sum(c * cf(cf.arg + (j - 1)) for (j, c) in enumerate(coeffs))
             push!(cforms, ClosedFormT(lrs.funcs[i], cform))
         end
     end
