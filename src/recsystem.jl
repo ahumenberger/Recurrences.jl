@@ -112,8 +112,8 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
     # lrs = homogenize(lrs)
     σ = x -> x |> subs(lrs.arg, lrs.arg+1)
-    σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
-    δ = x -> σ(x) - x
+    σinv = x -> x |> subs(lrs.arg, lrs.arg-1)
+    δ = x -> 0
     C, A = rational_form(copy(-lrs.mat[1]), σ, σinv, δ)
     # A = -A
     if !iszero(C[1:end-1,2:end] - UniformScaling(1))
