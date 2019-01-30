@@ -107,6 +107,13 @@ function homogenize!(lrs::LinearRecSystem{T}) where {T}
     lrs
 end
 
+function monic(lrs::LinearRecSystem)
+    minv = inv(lrs.mat[end])
+    mat = [minv * m for m in lrs.mat]
+    inhom = minv * lrs.inhom
+    LinearRecSystem(lrs.funcs, lrs.arg, mat, inhom)
+end
+
 function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
@@ -148,6 +155,7 @@ function solve(lrs::LinearRecSystem{T}) where {T}
             push!(cforms, cf)
         end
     else
+        lrs = monic(lrs)
         lrs, oldlrs = homogenize(lrs), lrs
         C, A = decouple(lrs)
         coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))

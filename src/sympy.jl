@@ -16,7 +16,7 @@ macro lrs(input)
     @assert length(args) == 1 "More than one function argument, got $(args)"
     sys = LinearRecSystem(args[1])
     push!(sys, entries...)
-    sys
+    return sys
 end
 
 macro rec(expr)
