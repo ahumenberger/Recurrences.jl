@@ -141,9 +141,8 @@ end
 function solve(lrs::LinearRecSystem{T}) where {T}
     cforms = CFiniteClosedForm[]
     if isdecoupled(lrs) && ishomogeneous(lrs)
-        diagonals = [Diagonal(m) for m in lrs.mat]
         for i in 1:nrows(lrs)
-            coeffs = [diagonals[j][i] for j in 1:length(lrs.mat)]
+            coeffs = [m[i,i] for m in lrs.mat]
             rec = CFiniteRecurrence(lrs.funcs[i], lrs.arg, coeffs)
             cf = closedform(rec)
             push!(cforms, cf)
@@ -152,11 +151,11 @@ function solve(lrs::LinearRecSystem{T}) where {T}
         lrs, oldlrs = homogenize(lrs), lrs
         C, A = decouple(lrs)
         coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))
-        if all(is_constant.(coeffs))
+        if any(has.(coeffs, lrs.arg))
+            @error "Only C-finite recurrences supported by now"
+        else
             RecurrenceT = CFiniteRecurrence
             ClosedFormT = CFiniteClosedForm
-        else
-            @error "Only C-finite recurrences supported by now"
         end
         rec = RecurrenceT(unique(T), lrs.arg, coeffs)
         @debug "Reference recurrence" rec

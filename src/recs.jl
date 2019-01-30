@@ -11,7 +11,7 @@ struct CFiniteRecurrence{T} <: LinearRecurrence
     inhom::T
 
     function CFiniteRecurrence(func::T, arg::T, coeffs::Vector{T}, inhom::T = T(0)) where {T}
-        if !all(is_constant.(coeffs))
+        if any(has.(coeffs, arg))
             error("Not a C-finite recurrence.")
         end
         new{T}(func, arg, coeffs, inhom)
@@ -85,9 +85,9 @@ function mroots(p::Polynomials.Poly{SymPy.Sym})
     length(p) == 0 && return zeros(T, 0)
 
     num_leading_zeros = 0
-    while p[num_leading_zeros] ≈ zero(T)
+    while p[num_leading_zeros] == zero(T)
         if num_leading_zeros == length(p)-1
-            return zeros(R, 0)
+            return zeros(T, 0)
         end
         num_leading_zeros += 1
     end
