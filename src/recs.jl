@@ -32,6 +32,7 @@ struct CFiniteClosedForm{T}
 end
 
 CFiniteClosedForm(func::T, arg::T, mvec::Vector{T}, rvec::Vector{T}, xvec::Vector{T}, initvec::Vector{T}) where {T} = CFiniteClosedForm(func, arg, mvec, rvec, xvec, initvec, arg)
+CFiniteClosedForm(func::T, cf::CFiniteClosedForm{T}) where {T} = CFiniteClosedForm(func, cf.arg, cf.mvec, cf.rvec, cf.xvec, cf.initvec, cf.instance)
 
 function Base.:*(cf::CFiniteClosedForm{T}, coeff::Number) where {T}
     xvec = coeff .* cf.xvec
@@ -41,7 +42,7 @@ Base.:*(coeff::Number, cf::CFiniteClosedForm{T}) where {T} = cf*coeff
 
 function Base.:+(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T}
     @assert cf1.arg == cf2.arg "Argument mismatch, got $(cf1.arg) and $(cf2.arg)"
-    cf1, cf2 = backshift(cf1), backshift(cf2)
+    cf1, cf2 = reset(cf1), reset(cf2)
     mvec = [cf1.mvec; cf2.mvec]
     rvec = [cf1.rvec; cf2.rvec]
     xvec = [cf1.xvec; cf2.xvec]
@@ -51,13 +52,14 @@ end
 Base.:-(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T} = cf1 + (-1) * cf2
 
 function (c::CFiniteClosedForm{T})(n::Union{Int, T}) where {T}
-    CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, c.xvec, c.initvec, subs(c.instance, c.arg, n))
+    CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, c.arg, n) for x in c.xvec], c.initvec, subs(c.instance, c.arg, n))
 end
 
-function backshift(c::CFiniteClosedForm{T}) where {T}
+function reset(c::CFiniteClosedForm{T}) where {T}
     if has(c.instance, c.arg)
         shift = c.instance - c.arg
-        xvec = c.xvec .* (c.rvec .^ shift)
+        factors = [c.instance^m / c.arg^m * r^shift for (r, m) in zip(c.rvec, c.mvec)]
+        xvec = c.xvec .* factors
         rvec = c.rvec
     else
         xvec = c.xvec .* (c.rvec .^ c.instance)
@@ -65,6 +67,8 @@ function backshift(c::CFiniteClosedForm{T}) where {T}
     end
     CFiniteClosedForm(c.func, c.arg, c.mvec, rvec, xvec, c.initvec)
 end
+
+init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d) for x in c.xvec], c.initvec, c.instance)
 
 function mroots(poly::Polynomials.Poly{T}) where {T}
     roots = Polynomials.roots(poly)
@@ -107,7 +111,7 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     rvec = [z for (z, m) in roots for _ in 0:m - 1] # roots
 
     A = [i^m * r^i for i in 0:size-1, (r, m) in zip(rvec, mvec)]
-    b = [T("$(string(rec.func))_$(i)") for i in 0:size - 1] 
+    b = [initvariable(rec.func, i) for i in 0:size - 1] 
     # @info "Ansatz" A b A\b
     CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
 end

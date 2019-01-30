@@ -113,7 +113,7 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     if !iszero(C[1:end-1,2:end] - UniformScaling(1))
         @error "Fix needed! Not a companion matrix:" C
     end
-    @info "Zürcher" C A inv(A)
+    @debug "Zürcher" input=-matr[1] C A inv(A)
 
     # p = Polynomials.Poly(auxcoeff)
 
@@ -145,17 +145,30 @@ function solve(lrs::LinearRecSystem{T}) where {T}
     else
         C, A = decouple(lrs)
         coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))
-        rec = CFiniteRecurrence(unique(T), lrs.arg, coeffs)
+        if all(is_constant.(coeffs))
+            RecurrenceT = CFiniteRecurrence
+            ClosedFormT = CFiniteClosedForm
+        else
+            @error "Only C-finite recurrences supported by now"
+        end
+        rec = RecurrenceT(unique(T), lrs.arg, coeffs)
         cf = closedform(rec)
-        @info "Closed form" cf
+        @debug "Closed form of reference recurrence" cf
+        initvec = [initvariable(f, 0) for f in lrs.funcs]
+        initsubs = Dict(zip(cf.initvec, inv(A) * initvec))
+        @debug "Rules for substitution of initial values" initsubs
+        cf = init(cf, initsubs)
+        @debug "Closed form after substitution of initial values" cf
         for i in 1:size(C, 1)
             coeffs = reverse(A[i,:])
-            cform = sum(c * cf(cf.func - j) for (j, c) in enumerate(coeffs))
-            push!(cforms, cform)
+            cform = sum(c * cf(cf.arg - j) for (j, c) in enumerate(coeffs))
+            push!(cforms, ClosedFormT(lrs.funcs[i], cform))
         end
     end
     cforms
 end
+
+initvariable(v::T, i::Union{T, Int64}) where {T} = T("$(string(v))_$(i)")
 
 var_count = 0
 
