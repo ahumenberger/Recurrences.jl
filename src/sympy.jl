@@ -56,7 +56,8 @@ function LinearRecEntry(expr::SymPy.Sym)
             co = coeff(expr, f(farg + i))
             if !iszero(co)
                 hom += co * fc
-                dicts[i+1][f] = co
+                g = SymPy.Sym(string(SymPy.Sym(f.x)))
+                dicts[i+1][g] = co
             end
         end
     end
