@@ -155,12 +155,14 @@ function solve(lrs::LinearRecSystem{T}) where {T}
             push!(cforms, cf)
         end
     else
-        lrs = monic(lrs)
+        # lrs = monic(lrs)
         lrs, oldlrs = homogenize(lrs), lrs
         C, A = decouple(lrs)
         coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))
         if any(has.(coeffs, lrs.arg))
             @error "Only C-finite recurrences supported by now"
+            RecurrenceT = HyperRecurrence
+            # ClosedFormT = CFiniteClosedForm
         else
             RecurrenceT = CFiniteRecurrence
             ClosedFormT = CFiniteClosedForm

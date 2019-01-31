@@ -18,6 +18,24 @@ struct CFiniteRecurrence{T} <: LinearRecurrence
     end
 end
 
+struct HyperRecurrence{T} <: LinearRecurrence
+    func::T
+    arg::T
+    coeffs::Vector{T}
+    inhom::T
+
+    function HyperRecurrence(func::T, arg::T, coeffs::Vector{T}, inhom::T = T(0)) where {T}
+        # if any(has.(coeffs, arg))
+        #     error("Not a C-finite recurrence.")
+        # end
+        new{T}(func, arg, coeffs, inhom)
+    end
+end
+
+function closedform(rec::HyperRecurrence{T}) where {T}
+    petkovsek(rec.coeffs, rec.arg)
+end
+
 coeffs(r::CFiniteRecurrence) = r.coeffs
 order(r::CFiniteRecurrence) = length(r.coeffs) - 1
 
@@ -92,7 +110,7 @@ function mroots(p::Polynomials.Poly{SymPy.Sym})
         num_leading_zeros += 1
     end
     num_trailing_zeros = 0
-    while p[end - num_trailing_zeros] ≈ zero(T)
+    while p[end - num_trailing_zeros] == zero(T)
         num_trailing_zeros += 1
     end
     n = lastindex(p)-(num_leading_zeros + num_trailing_zeros)

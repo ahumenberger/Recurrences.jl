@@ -9,6 +9,7 @@ using Polynomials
 using MacroTools
 
 include("zuercher.jl")
+include("petkovsek.jl")
 include("recs.jl")
 include("recsystem.jl")
 include("sympy.jl")
