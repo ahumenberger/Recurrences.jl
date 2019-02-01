@@ -5,9 +5,9 @@
 # export algpoly
 
 function fallingfactorial(x, j)
-    result = 1
+    result = Polynomials.Poly([1])
     for i in 0:j - 1
-        result *= (x - i)
+        result *= Polynomials.Poly([-i, 1])
     end
     return result
 end
@@ -38,14 +38,16 @@ end
 
 function factors(p::Polynomials.Poly)
     sympoly = Sym(sprint(printpoly, p))
-    factors(sympoly)
+    facts = factors(sympoly)
+    Polynomials.Poly.(SymPy.coeffs.(facts))
 end
 
 lc(p::Polynomials.Poly) = Polynomials.coeffs(p)[end]
-coeff2(p::Polynomials.Poly, s::Int) = Polynomials.degree(p) < s ? 0 : Polynomials.coeffs(p)[s]
+coeff2(p::Polynomials.Poly, s::Int) = s <= Polynomials.degree(p) ? Polynomials.coeffs(p)[s+1] : 0
 
 
-function algpoly(polylist, f, n)
+function algpoly(polylist::Vector{Polynomials.Poly{T}}, f, n) where {T}
+    @debug "algpoly" polylist
     # Construct polynomials qj that arise from treating the shift operator
 	# as the difference operator plus the identity operator.
     qlist = []
@@ -56,62 +58,86 @@ function algpoly(polylist, f, n)
         end
         push!(qlist, qj)
     end
-    
+    @debug "haha" [(Polynomials.degree(poly)) for (j, poly) in enumerate(qlist)]
     # Find all candidates for the degree bound on output polynomial.
     b = maximum([(Polynomials.degree(poly) - (j - 1)) for (j, poly) in enumerate(qlist)])
+    @debug "" qlist b
     first = Polynomials.degree(f) - b
     second = -1 * b - 1
-    lcoeffs = lc.(polylist)
-
-    alpha = 0 * n
+    lcoeffs = lc.(qlist)
+    @debug "" lcoeffs
+    alpha = 0
     for j in 0:length(qlist)-1
+        aux = Polynomials.degree(qlist[j+1]) - j
+        @debug "what" aux b aux == b
         if (Polynomials.degree(qlist[j+1]) - j) == b
             alpha += lcoeffs[j+1] * fallingfactorial(n, j)
         end
     end
-
-    deg = polyroots(alpha)
+    @debug "" alpha
+    deg = mroots(alpha)
     third = maximum(keys(deg))
     d = convert(Int64, max(first, second, third, 0))
+    @debug "Step 2" d
     # Use method of undetermined coefficients to find the output polynomial.
     varlist = symset("a", d+1)
     pol = 0 * n
     for i in 0:d
         pol += n^i * varlist[i+1]
     end
-    solution = -1 * f
-    for (i, poly) in enumerate(polylist)
-        solution += subs(pol, (n, n + (i-1))) * poly
-    end
-    coef = Polynomials.coeffs(solution)
+    poly = Polynomials.Poly(varlist)
+    # solution = -1 * f
+    # for (i, p) in enumerate(polylist)
+    #     @debug "" shift(poly, i - 1) * p
+    #     # solution += subs(pol, (n, n + (i-1))) * poly
+    #     # @debug "" solution
+    # end
+
+    sh = [shift(poly, i - 1) * p for (i, p) in enumerate(polylist)]
+    maxdeg = maximum(Polynomials.degree(p) for p in sh)
+    A = [coeff2(p, d) for d in 0:maxdeg, p in sh]
+    b = [coeff2(p, 0) for p in sh]
+    @debug "" sh A b #A\b
+        # solution += subs(pol, (n, n + (i-1))) * poly
+        # @debug "" solution
+
+    # coef = Polynomials.coeffs(solution)
     # filter!(e->e!=n*0, coef)
     # if isempty(coef)
     #     return Dict([v => v for v in varlist])
     # end
     # return solve(coef, varlist)
-    @debug "" coef
+    # A \ b
 end
 
+# function Base.convert(::Type{SymPy.Sym}, p::Polynomials.Poly{SymPy.Sym})
+
+# end
+
+Base.copysign(s::SymPy.Sym, i::Int64) = copysign(s, SymPy.Sym(i))
+Base.copysign(s::SymPy.Sym, f::Float64) = copysign(s, SymPy.Sym(f))
 
 
 function alghyper(polylist::Vector{Polynomials.Poly{T}}, n::T) where {T}
     p = polylist[1]
     alist = factors(p)
+    lcoeff = lc(p)
     for (i,p) in enumerate(alist)
-        alist[i] /= LC(SymPy.Poly(p, n))
+        alist[i] /= lcoeff
     end
-    if !(1*n^0 in alist)
-        push!(alist, 1*n^0)
+    if !(Polynomials.Poly([T(1)]) in alist)
+        push!(alist, Polynomials.Poly([T(1)]))
     end
 
     d = length(polylist)
     p = shift(polylist[end], -d+2)
+    lcoeff = lc(p)
     blist = factors(p)
     for (i,p) in enumerate(blist)
-        blist[i] /= LC(SymPy.Poly(p,n))
+        blist[i] /= lcoeff
     end
-    if !(1*n^0 in blist)
-        push!(blist, 1*n^0)
+    if !(Polynomials.Poly([T(1)]) in blist)
+        push!(blist, Polynomials.Poly([T(1)]))
     end
 
     solutions = []
@@ -121,10 +147,10 @@ function alghyper(polylist::Vector{Polynomials.Poly{T}}, n::T) where {T}
             for i in 0:d-1 
                 pi = polylist[i+1]
                 for j in 0:i-1
-                    pi *= subs(aelem, (n, n+j))
+                    pi *= shift(aelem, j)
                 end
                 for j in i:d-1
-                    pi *= subs(belem, (n, n+j))
+                    pi *= shift(belem, j)
                 end
                 push!(plist, pi)
             end
@@ -138,15 +164,17 @@ function alghyper(polylist::Vector{Polynomials.Poly{T}}, n::T) where {T}
             end
 
             vals = [key for (key,val) in polyroots(zpol) if key != 0]
-
+            @debug "roots" vals
             for x in vals
                 polylist2 = [x^(i-1)*p for (i,p) in enumerate(plist)]
+                
                 polysols = algpoly(polylist2, Polynomials.Poly([0]), n)
                 if isempty(polysols)
                     continue
                 end
-                polysols = collect(values(polysols))
+                # polysols = collect(values(polysols))
                 filter!(e->e!=n*0, polysols)
+                @debug "" polysols
                 if length(polysols) > 0
                     c = 0*n
                     for (i,p) in enumerate(polysols)
