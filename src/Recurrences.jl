@@ -8,6 +8,9 @@ using LinearAlgebra
 using Polynomials
 using MacroTools
 
+import Polynomials: Poly, printpoly, degree, coeffs, polyval, polyder
+
+include("rationalfunction.jl")
 include("zuercher.jl")
 include("petkovsek.jl")
 include("recs.jl")

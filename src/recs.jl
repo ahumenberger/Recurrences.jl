@@ -93,12 +93,12 @@ end
 
 init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d) for x in c.xvec], c.initvec, c.instance)
 
-function mroots(poly::Polynomials.Poly{T}) where {T}
+function mroots(poly::Poly{T}) where {T}
     roots = Polynomials.roots(poly)
     Dict([(r, count(x -> x==r, roots)) for r in Base.unique(roots)])
 end
 
-function mroots(p::Polynomials.Poly{SymPy.Sym})
+function mroots(p::Poly{SymPy.Sym})
     T = SymPy.Sym
     length(p) == 0 && return zeros(T, 0)
 
@@ -126,7 +126,7 @@ end
 function closedform(rec::CFiniteRecurrence{T}) where {T}
 
     # TODO: allow inhomogeneous recurrences?
-    roots = Polynomials.Poly(coeffs(rec)) |> mroots
+    roots = Poly(coeffs(rec)) |> mroots
     # @info "Roots" roots
 
     size = order(rec)
