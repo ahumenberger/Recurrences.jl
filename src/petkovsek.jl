@@ -3,7 +3,7 @@
 # using SymPy
 
 # export algpoly
-import Base.convert
+import Base: convert, gcd
 import SymPy.simplify
 
 function fallingfactorial(x, j)
@@ -190,7 +190,7 @@ function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
                 if length(polysols) > 0
                     c = Poly(polysols, string(n))
                     s = x * (aelem // belem) * (shift(c, 1) // c)
-                    @debug "S/sssss" s
+                    @info "Solution" s
                     push!(solutions, s)
                 end
             end
@@ -205,10 +205,17 @@ function convert(::Type{SymPy.Sym}, p::Poly)
 end
 convert(::Type{Poly}, p::SymPy.Sym) = Poly(SymPy.coeffs(p))
 
-
 function resultant(p::Poly, q::Poly)
     res = SymPy.resultant(convert(SymPy.Sym, p), convert(SymPy.Sym, q))
     convert(Poly, res)
+end
+
+function gcd(p::Poly{SymPy.Sym}, q::Poly{SymPy.Sym})
+    res = SymPy.gcd(convert(SymPy.Sym, p), convert(SymPy.Sym, q))
+    if !SymPy.has(res, SymPy.Sym(p.var))
+        return Poly([res], p.var)
+    end
+    Poly(SymPy.coeffs(SymPy.Poly(res, SymPy.Sym(p.var))), p.var)
 end
 
 struct FallingFactorial{T}
@@ -255,6 +262,8 @@ function hgterms(s::RationalFunction)
 end
 
 function petkovsek(coeffs::Vector{T}, arg::T) where {T}
+    coeffs = simplify.(coeffs)
+    @debug "Petkovsek - input" coeffs
     ls = summands.(coeffs) |> Iterators.flatten
     ds = denom.(ls)
     val = lcm2(ds...)

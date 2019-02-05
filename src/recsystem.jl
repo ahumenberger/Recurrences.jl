@@ -108,6 +108,9 @@ function homogenize!(lrs::LinearRecSystem{T}) where {T}
 end
 
 function monic(lrs::LinearRecSystem)
+    if iszero(lrs.mat[end] - UniformScaling(1))
+        return lrs
+    end
     minv = inv(lrs.mat[end])
     mat = [minv * m for m in lrs.mat]
     inhom = minv * lrs.inhom
