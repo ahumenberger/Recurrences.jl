@@ -117,16 +117,21 @@ end
 function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
-    # lrs = homogenize(lrs)
-    σ = x -> x |> subs(lrs.arg, lrs.arg+1)
-    σinv = x -> x |> subs(lrs.arg, lrs.arg-1)
-    δ = x -> 0
-    C, A = rational_form(copy(-lrs.mat[1]), σ, σinv, δ)
+    # # lrs = homogenize(lrs)
+    # σ = x -> x |> subs(lrs.arg, lrs.arg+1)
+    # σinv = x -> x |> subs(lrs.arg, lrs.arg-1)
+    # δ = x -> 0
+
+    σ = x -> x |> subs(lrs.arg, lrs.arg-1)
+    σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
+    δ = x -> σ(x) - x
+    M = σ.(-lrs.mat[1]) - UniformScaling(1)
+    C, A = rational_form(copy(M), σ, σinv, δ)
     # A = -A
     if !iszero(C[1:end-1,2:end] - UniformScaling(1))
         @error "Fix needed! Not a companion matrix:" C
     end
-    @debug "Zürcher" input=-lrs.mat[1] C A inv(A)
+    @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A inv(A) M
 
     # p = Polynomials.Poly(auxcoeff)
 
@@ -142,7 +147,7 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     #     # @info "New LRS" newlrs
     # end
 
-    C, A
+    σinv.(C[end,:]), A
 end
 
 function solve(lrs::LinearRecSystem{T}) where {T}
@@ -155,10 +160,15 @@ function solve(lrs::LinearRecSystem{T}) where {T}
             push!(cforms, cf)
         end
     else
-        # lrs = monic(lrs)
+        lrs = monic(lrs)
+        @debug "" lrs
         lrs, oldlrs = homogenize(lrs), lrs
         C, A = decouple(lrs)
-        coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))
+        coeffpoly = sum(c * Poly(pascal(i-1, alt = true)) for (i, c) in enumerate(C)) + Poly(pascal(length(C), alt = true))
+        @debug "coeffpoly" simplify.(Polynomials.coeffs(coeffpoly))
+        # @assert false
+        # coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))
+        coeffs = Polynomials.coeffs(coeffpoly)
         if any(has.(coeffs, lrs.arg))
             @error "Only C-finite recurrences supported by now"
             RecurrenceT = HyperRecurrence
@@ -176,6 +186,7 @@ function solve(lrs::LinearRecSystem{T}) where {T}
             # Assume lrs got homogenized, therefore initial value of introduced variable is 1
             initvec[end] = T(1)
         end
+        @debug "" inv(A) * initvec
         initsubs = Dict(zip(cf.initvec, inv(A) * initvec))
         @debug "Rules for substitution of initial values" initsubs
         cf = init(cf, initsubs)

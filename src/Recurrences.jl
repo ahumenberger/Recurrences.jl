@@ -16,6 +16,7 @@ include("petkovsek.jl")
 include("recs.jl")
 include("recsystem.jl")
 include("sympy.jl")
+include("utils.jl")
 
 greet() = print("Hello World!")
 

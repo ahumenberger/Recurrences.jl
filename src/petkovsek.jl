@@ -3,6 +3,8 @@
 # using SymPy
 
 # export algpoly
+import Base.convert
+import SymPy.simplify
 
 function fallingfactorial(x, j)
     result = Poly([1], string(x))
@@ -18,7 +20,12 @@ function symset(v::String, j::Int64)
     return Sym[Sym("$v$i") for i in 1:j]
 end
 
+denominator(s::SymPy.Sym) = denom(s)
 
+function simplify(p::Poly)
+    l = lcm2(denominator.(coeffs(p))...)
+    Poly(coeffs(p) .* l, p.var)
+end
 
 function factors(expr::Sym)
     # c, list = factor_list(expr)
@@ -32,7 +39,7 @@ function factors(expr::Sym)
     return result
 end
 
-function shift(p::Poly{T}, s::Int) where{T}
+function shift(p::Poly{T}, s::Union{Int64, T}) where{T}
     c = T[polyval(polyder(p, i), s) / factorial(i) for i in 0:degree(p)]
     Poly(c, p.var)
 end
@@ -181,13 +188,9 @@ function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
 
                 filter!(e -> e != 0, polysols)
                 if length(polysols) > 0
-                    # c = 0*n
-                    # for (i,p) in enumerate(polysols)
-                    #     c += n^(i-1) * p
-                    # end
                     c = Poly(polysols, string(n))
-                    @debug "" aelem.var belem.var c.var shift(c, 1).var
                     s = x * (aelem // belem) * (shift(c, 1) // c)
+                    @debug "S/sssss" s
                     push!(solutions, s)
                 end
             end
@@ -196,48 +199,60 @@ function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
     return solutions
 end
 
-function tohg(sol, n)
-    facts = factors(sol)
-    result = []
-    for f in facts
-        if has(f, n)
-            f = f |> subs(n, n-1)
-            c = coeff(f, n)
-            f = f / c
-            push!(result, factorial(f))
-            if c != 1
-                push!(result, c^n)
-            end
-        else
-            push!(result, f^n)
-        end
-    end
-    return prod(result)
+function convert(::Type{SymPy.Sym}, p::Poly)
+    x = SymPy.Sym(string(p.var))
+    sum(c*x^(i-1) for (i, c) in enumerate(coeffs(p)))
+end
+convert(::Type{Poly}, p::SymPy.Sym) = Poly(SymPy.coeffs(p))
+
+
+function resultant(p::Poly, q::Poly)
+    res = SymPy.resultant(convert(SymPy.Sym, p), convert(SymPy.Sym, q))
+    convert(Poly, res)
 end
 
 struct FallingFactorial{T}
-    var::T
-    shift::T
+    p::Poly{T}
+    # exp::T
 end
 
-function tohg(s::RationalFunction)
-    c, num, den = monic(s)
-    fnum, fden = factors(num), factors(den)
-
-
-end
-
-function summands(expr::Sym)
-    expr = expand(expr)
-    @debug "" expr typeof(expr)
-    if SymPy.funcname(expr) == "Add"
-        return args(expr)
+function commonfactors(p::Poly, q::Poly)
+    k = variables(SymPy.Sym)
+    res = resultant(shift(p, k), q)
+    roots = keys(mroots(res)) |> collect
+    filter!(x -> isinteger(x), roots)
+    @debug "Integer roots of resultant" roots
+    if isempty(roots)
+        return 1, (FallingFactorial(p), FallingFactorial(q))
     end
-    [expr]
+
+    r = convert(Int64, roots[1])
+    g = gcd(shift(p, r), q)
+    @debug "GCD" g shift(p, r) q
+    u = prod(polyval(g, -i) for i in 0:r-1)
+    v = prod(shift(g, -i) for i in 0:r-1)
+    rf = r < 0 ? v // u : u // v
+    @debug "" u v rf
+
+    s, sr = divrem(p, shift(g, -r))
+    t, tr = divrem(q, g)
+    if !iszero(sr) || !iszero(tr)
+        @error "Remainder not zero (should not happen) - got $((sr, tr))"
+    end
+    rfunc, ffact = commonfactors(s, t)
+    rfunc * rf, ffact
 end
 
-lcm2(n::Sym, rest::Sym...) = SymPy.lcm(n, lcm2(rest...))
-lcm2() = 1
+function hgterms(s::RationalFunction)
+    c, num, den = monic(s)
+    @debug "" c num den
+    # fnum, fden = factors(num), factors(den)
+    if num != 1 && den != 1
+        rfunc, ffact = commonfactors(num, den)
+        return c, rfunc, ffact
+    end
+    c, 1, (FallingFactorial(num), FallingFactorial(den))
+end
 
 function petkovsek(coeffs::Vector{T}, arg::T) where {T}
     ls = summands.(coeffs) |> Iterators.flatten
@@ -248,7 +263,7 @@ function petkovsek(coeffs::Vector{T}, arg::T) where {T}
     coeffs = SymPy.Poly.(coeffs, arg)
     hyper = alghyper(Poly.(SymPy.coeffs.(coeffs), string(arg)), arg)
     @debug "Petkovsek - alghyper" hyper
-    tohg.(hyper, arg)
+    hgterms.(hyper)
 end
 
 # function hyper()
@@ -260,7 +275,7 @@ end
 
 # @syms n y
 
-# alghyper([2*n*(n+1), -(n^2 +3*n-2), n-1], n)
+# @syms n; Recurrences.petkovsek([2*n*(n+1), -(n^2 +3*n-2), n-1], n)
 
 # # algpoly([3, -n, n-1], 0*n, n)
 # # algpoly([n-1, -n, 3], 0*n, n)
