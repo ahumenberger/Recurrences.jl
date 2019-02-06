@@ -39,7 +39,7 @@ function factors(expr::Sym)
     return result
 end
 
-function shift(p::Poly{T}, s::Union{Int64, T}) where{T}
+function shift(p::Poly{T}, s::Union{Int64, T}) where {T}
     c = T[polyval(polyder(p, i), s) / factorial(i) for i in 0:degree(p)]
     Poly(c, p.var)
 end
@@ -223,7 +223,12 @@ struct FallingFactorial{T}
     # exp::T
 end
 
+shift(f::FallingFactorial{T}, s::Union{Int64, T}) where {T} = FallingFactorial(shift(f.p, s))
+
 function commonfactors(p::Poly, q::Poly)
+    if p == 1 || q == 1
+        return 1, (FallingFactorial(p), FallingFactorial(q))
+    end
     k = variables(SymPy.Sym)
     res = resultant(shift(p, k), q)
     roots = keys(mroots(res)) |> collect
@@ -236,9 +241,19 @@ function commonfactors(p::Poly, q::Poly)
     r = convert(Int64, roots[1])
     g = gcd(shift(p, r), q)
     @debug "GCD" g shift(p, r) q
-    u = prod(polyval(g, -i) for i in 0:r-1)
-    v = prod(shift(g, -i) for i in 0:r-1)
-    rf = r < 0 ? v // u : u // v
+    if r < 0
+        @debug "" [polyval(g, i) for i in 1:-r]
+        @debug "" [shift(g, i) for i in 1:-r]
+        u = prod(polyval(g, i) for i in 1:-r)
+        v = prod(shift(g, i) for i in 1:-r)
+        rf = v // u 
+    else
+        @debug "" [polyval(g, -i+1) for i in 1:r]
+        @debug "" [shift(g, -i+1) for i in 1:r]
+        u = prod(polyval(g, -i+1) for i in 1:r)
+        v = prod(shift(g, -i+1) for i in 1:r)
+        rf = u // v
+    end
     @debug "" u v rf
 
     s, sr = divrem(p, shift(g, -r))
@@ -255,7 +270,18 @@ function hgterms(s::RationalFunction)
     @debug "" c num den
     # fnum, fden = factors(num), factors(den)
     if num != 1 && den != 1
+        # TODO: is this shift really the correct thing to do?!
+        proots = keys(mroots(num)) |> collect
+        qroots = keys(mroots(den)) |> collect
+        pqroots = filter(x -> isinteger(x), [proots; qroots])
+        @debug "" pqroots
+        sh = isempty(pqroots) ? 0 : minimum(pqroots)
+        sh = sh < 0 ? -sh : 0
+        num, den = shift(num, sh), shift(den, sh)
+
         rfunc, ffact = commonfactors(num, den)
+        rfunc, ffact = shift(rfunc, -sh), shift.(ffact, -sh)
+
         return c, rfunc, ffact
     end
     c, 1, (FallingFactorial(num), FallingFactorial(den))

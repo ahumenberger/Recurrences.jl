@@ -72,3 +72,5 @@ function monic(x::RationalFunction)
     lcn, lcd = lc(n), lc(d)
     lcn/lcd, n/lcn, d/lcd
 end
+
+shift(r::RationalFunction{T}, s::Union{Int64, T}) where {T} = RationalFunction(shift(numerator(r), s), shift(denominator(r), s))
