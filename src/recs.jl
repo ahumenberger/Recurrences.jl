@@ -32,10 +32,6 @@ struct HyperRecurrence{T} <: LinearRecurrence
     end
 end
 
-function closedform(rec::HyperRecurrence{T}) where {T}
-    petkovsek(rec.coeffs, rec.arg)
-end
-
 coeffs(r::CFiniteRecurrence) = r.coeffs
 order(r::CFiniteRecurrence) = length(r.coeffs) - 1
 
@@ -151,4 +147,33 @@ function Base.show(io::IO, ::MIME"text/plain", cf::CFiniteClosedForm)
     summary(io, cf)
     println(io, ":")
     show(io, cf)
+end
+
+struct HyperClosedForm{T}
+    func::T
+    arg::T
+    evec::Vector{T} # bases of exponentials
+    rvec::Vector{RationalFunction{T}} # rational functions
+    fvec::Vector{Pair{FallingFactorial{T},FallingFactorial{T}}} # falling factorials
+    initvec::Vector{T}
+    instance::T # instantiate closed form, yields a closed form where `arg` is replaced by `instance`
+end
+
+
+function closedform(rec::HyperRecurrence{T}) where {T}
+    hgterms = petkovsek(rec.coeffs, rec.arg)
+    
+    evec = T[]
+    rvec = RationalFunction{T}[]
+    fvec = Vector{Pair{FallingFactorial{T},FallingFactorial{T}}}[]
+    for (exp, rfunc, fact) in hgterms
+        push!(evec, exp)
+        push!(rvec, rfunc)
+        push!(fvec, fact)
+    end
+
+    # A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
+    # b = [initvariable(rec.func, i) for i in 0:size - 1] 
+
+    # HyperClosedForm(rec.func, rec.arg, evec, rvec, fvec)
 end

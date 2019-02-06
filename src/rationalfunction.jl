@@ -74,3 +74,5 @@ function monic(x::RationalFunction)
 end
 
 shift(r::RationalFunction{T}, s::Union{Int64, T}) where {T} = RationalFunction(shift(numerator(r), s), shift(denominator(r), s))
+
+(r::RationalFunction{T})(n::Union{Int, T}) where {T} = polyval(numerator(r), n) / polyval(denominator(r), n)
