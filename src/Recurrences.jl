@@ -11,6 +11,7 @@ using MacroTools
 import Polynomials: Poly, printpoly, degree, coeffs, polyval, polyder
 
 include("rationalfunction.jl")
+include("polyhelpers.jl")
 include("zuercher.jl")
 include("petkovsek.jl")
 include("rectypes.jl")
@@ -18,7 +19,6 @@ include("cftypes.jl")
 include("recsystem.jl")
 include("sympy.jl")
 include("utils.jl")
-include("polyhelpers.jl")
 
 greet() = print("Hello World!")
 

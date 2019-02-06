@@ -9,7 +9,7 @@ struct FallingFactorial{T}
 end
 
 shift(f::FallingFactorial{T}, s::Union{Int64, T}) where {T} = FallingFactorial(shift(f.p, s))
-(f::FallingFactorial{T})(n::Union{Int, T}) where {T} = prod(shift(f.p, -i)(n) for i in 0:n-1)
+(f::FallingFactorial{T})(n::Union{Int, T}) where {T} = n == 0 ? 1 : prod(shift(f.p, -i)(n) for i in 0:n-1)
 
 # ------------------------------------------------------------------------------
 

@@ -36,6 +36,9 @@ end
 coeffs(r::CFiniteRecurrence) = r.coeffs
 order(r::CFiniteRecurrence) = length(r.coeffs) - 1
 
+coeffs(r::HyperRecurrence) = r.coeffs
+order(r::HyperRecurrence) = length(r.coeffs) - 1
+
 function Base.show(io::IO, r::CFiniteRecurrence)
     res = join(["$(c) * $(r.func)($(r.arg + (i - 1)))" for (i, c) in enumerate(r.coeffs)], " + ")
     print(io, "$(res) = $(r.inhom)")

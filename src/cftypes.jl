@@ -20,9 +20,12 @@ struct HyperClosedForm{T}
     evec::Vector{T} # bases of exponentials
     rvec::Vector{RationalFunction{T}} # rational functions
     fvec::Vector{Pair{FallingFactorial{T},FallingFactorial{T}}} # falling factorials
+    xvec::Vector{T} # coeffs
     initvec::Vector{T}
     instance::T # instantiate closed form, yields a closed form where `arg` is replaced by `instance`
 end
+
+HyperClosedForm(func::T, arg::T, evec::Vector{T}, rvec::Vector{RationalFunction{T}}, fvec::Vector{Pair{FallingFactorial{T},FallingFactorial{T}}}, xvec::Vector{T}, initvec::Vector{T}) where {T} = HyperClosedForm(func, arg, evec, rvec, fvec, xvec, initvec, arg)
 
 # ------------------------------------------------------------------------------
 
@@ -48,17 +51,19 @@ function closedform(rec::HyperRecurrence{T}) where {T}
     
     evec = T[]
     rvec = RationalFunction{T}[]
-    fvec = Vector{Pair{FallingFactorial{T},FallingFactorial{T}}}[]
+    fvec = Pair{FallingFactorial{T},FallingFactorial{T}}[]
     for (exp, rfunc, fact) in hgterms
+        @debug "" exp rfunc fact
         push!(evec, exp)
         push!(rvec, rfunc)
         push!(fvec, fact)
     end
 
-    # A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
-    # b = [initvariable(rec.func, i) for i in 0:size - 1] 
+    size = order(rec)
+    A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
+    b = [initvariable(rec.func, i) for i in 0:size - 1] 
 
-    # HyperClosedForm(rec.func, rec.arg, evec, rvec, fvec)
+    HyperClosedForm(rec.func, rec.arg, evec, rvec, fvec, A \ b, b)
 end
 
 # ------------------------------------------------------------------------------
@@ -67,6 +72,12 @@ function expression(cf::CFiniteClosedForm)
     vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
     simplify(transpose(vec) * cf.xvec)
 end
+
+# function expression(cf::HyperClosedForm)
+#     vec = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
+#     vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
+#     simplify(transpose(vec) * cf.xvec)
+# end
 
 
 function Base.:*(cf::CFiniteClosedForm{T}, coeff::Number) where {T}
@@ -105,11 +116,13 @@ end
 
 init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d) for x in c.xvec], c.initvec, c.instance)
 
+init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, d) for x in c.xvec], c.initvec, c.instance)
+
 # ------------------------------------------------------------------------------
 
-Base.show(io::IO, cf::CFiniteClosedForm) = print(io, " $(cf.func)($(cf.instance)) = $(expression(cf))")
+Base.show(io::IO, cf::Union{CFiniteClosedForm, HyperClosedForm}) = print(io, " $(cf.func)($(cf.instance)) = $(expression(cf))")
 
-function Base.show(io::IO, ::MIME"text/plain", cf::CFiniteClosedForm)
+function Base.show(io::IO, ::MIME"text/plain", cf::Union{CFiniteClosedForm, HyperClosedForm})
     summary(io, cf)
     println(io, ":")
     show(io, cf)

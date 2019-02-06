@@ -137,7 +137,7 @@ end
 
 function commonfactors(p::Poly, q::Poly)
     if p == 1 || q == 1
-        return 1, (FallingFactorial(p), FallingFactorial(q))
+        return 1, Pair(FallingFactorial(p), FallingFactorial(q))
     end
     k = variables(SymPy.Sym)
     res = resultant(shift(p, k), q)
@@ -145,7 +145,7 @@ function commonfactors(p::Poly, q::Poly)
     filter!(x -> isinteger(x), roots)
     @debug "Integer roots of resultant" roots
     if isempty(roots)
-        return 1, (FallingFactorial(p), FallingFactorial(q))
+        return 1, Pair(FallingFactorial(p), FallingFactorial(q))
     end
 
     r = convert(Int64, roots[1])
@@ -190,11 +190,11 @@ function hgterms(s::RationalFunction)
         num, den = shift(num, sh), shift(den, sh)
 
         rfunc, ffact = commonfactors(num, den)
-        rfunc, ffact = shift(rfunc, -sh), shift.(ffact, -sh)
+        rfunc, ffact = shift(rfunc, -sh), Pair(shift(ffact[1], -sh), shift(ffact[2], -sh))
 
         return c, rfunc, ffact
     end
-    c, 1, (FallingFactorial(num), FallingFactorial(den))
+    c, 1, Pair(FallingFactorial(num), FallingFactorial(den))
 end
 
 function petkovsek(coeffs::Vector{T}, arg::T) where {T}

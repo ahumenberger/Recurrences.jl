@@ -18,6 +18,7 @@ RationalFunction(n::Poly, d::Poly) = RationalFunction(promote(n, d)...)
 RationalFunction(n::Poly, d::Number) = RationalFunction(n, Poly(d, n.var))
 RationalFunction(n::Number, d::Poly) = RationalFunction(Poly(n, d.var), d)
 RationalFunction(n::Poly{T}) where {T} = RationalFunction(n, one(T))
+RationalFunction(n::Number, d::Number) = RationalFunction(Poly(n), Poly(d))
 RationalFunction(x::RationalFunction) = x
 
 function divgcd(x::Poly, y::Poly)
@@ -66,6 +67,7 @@ Base.promote_rule(::Type{RationalFunction{T}}, ::Type{RationalFunction{S}}) wher
 Base.promote_rule(::Type{Poly{T}}, ::Type{T}) where {T} = Poly{T}
 
 Base.convert(::Type{RationalFunction{T}}, x::Poly{T}) where {T} = RationalFunction(x)
+Base.convert(::Type{RationalFunction{T}}, x::Number) where {T} = RationalFunction(T(x), T(1))
 
 function monic(x::RationalFunction)
     n, d = numerator(x), denominator(x)
