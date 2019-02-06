@@ -18,6 +18,7 @@ include("cftypes.jl")
 include("recsystem.jl")
 include("sympy.jl")
 include("utils.jl")
+include("polyhelpers.jl")
 
 greet() = print("Hello World!")
 
