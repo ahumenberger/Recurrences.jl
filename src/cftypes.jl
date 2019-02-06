@@ -73,6 +73,16 @@ function expression(cf::CFiniteClosedForm)
     simplify(transpose(vec) * cf.xvec)
 end
 
+function convert(::Type{T}, c::CFiniteClosedForm) where {T <: SymPy.Sym}
+    vec = [c.instance^m * r^c.instance for (r, m) in zip(c.rvec, c.mvec)]
+    simplify(transpose(vec) * c.xvec)
+end
+
+function convert(::Type{T}, c::HyperClosedForm{T}) where {T <: SymPy.Sym}
+    vec = [e^c.arg * convert(T, r) * convert(T, f[1]) / convert(T, f[2]) * x for (e, r, f, x) in zip(c.evec, c.rvec, c.fvec, c.xvec)]
+    simplify(sum(vec))
+end
+
 # function expression(cf::HyperClosedForm)
 #     vec = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
 #     vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
@@ -101,6 +111,10 @@ function (c::CFiniteClosedForm{T})(n::Union{Int, T}) where {T}
     CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, c.arg, n) for x in c.xvec], c.initvec, subs(c.instance, c.arg, n))
 end
 
+function (c::HyperClosedForm{T})(n::Union{Int, T}) where {T}
+    HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, c.arg, n) for x in c.xvec], c.initvec, subs(c.instance, c.arg, n))
+end
+
 function reset(c::CFiniteClosedForm{T}) where {T}
     if has(c.instance, c.arg)
         shift = c.instance - c.arg
@@ -120,7 +134,7 @@ init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rve
 
 # ------------------------------------------------------------------------------
 
-Base.show(io::IO, cf::Union{CFiniteClosedForm, HyperClosedForm}) = print(io, " $(cf.func)($(cf.instance)) = $(expression(cf))")
+Base.show(io::IO, cf::Union{CFiniteClosedForm, HyperClosedForm}) = print(io, " $(cf.func)($(cf.instance)) = $(convert(SymPy.Sym, cf))")
 
 function Base.show(io::IO, ::MIME"text/plain", cf::Union{CFiniteClosedForm, HyperClosedForm})
     summary(io, cf)

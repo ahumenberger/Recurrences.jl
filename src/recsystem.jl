@@ -189,8 +189,20 @@ function solve(lrs::LinearRecSystem{T}) where {T}
             # Assume lrs got homogenized, therefore initial value of introduced variable is 1
             initvec[end] = T(1)
         end
-        @debug "" inv(A) * initvec
-        initsubs = Dict(zip(cf.initvec, inv(A) * initvec))
+        # @debug "" inv(A) * initvec
+        M = -lrs.mat[1]
+        S = UniformScaling(1)
+        D = inv(A)
+        ivec = T[]
+        for i in 0:order(rec)-1
+            # ival = subs((D * initvec)[1], lrs.arg, i)
+            ival = (subs(D, lrs.arg, i) * S * initvec)[1]
+            push!(ivec, ival)
+            # @debug "initval for $(i)" ival
+            S = subs(M, lrs.arg, i+1) * S
+            # D = M * D
+        end
+        initsubs = Dict(zip(cf.initvec, ivec))
         @debug "Rules for substitution of initial values" initsubs
         cf = init(cf, initsubs)
         @debug "Closed form after substitution of initial values" cf

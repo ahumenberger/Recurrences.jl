@@ -11,6 +11,10 @@ end
 shift(f::FallingFactorial{T}, s::Union{Int64, T}) where {T} = FallingFactorial(shift(f.p, s))
 (f::FallingFactorial{T})(n::Union{Int, T}) where {T} = n == 0 ? 1 : prod(shift(f.p, -i)(n) for i in 0:n-1)
 
+function convert(::Type{T}, f::FallingFactorial{T}) where {T <: SymPy.Sym}
+    SymPy.FallingFactorial(convert(T, f.p), SymPy.Sym(f.p.var))
+end
+
 # ------------------------------------------------------------------------------
 
 function convert(::Type{SymPy.Sym}, p::Poly)
@@ -32,8 +36,8 @@ function gcd(p::Poly{SymPy.Sym}, q::Poly{SymPy.Sym})
     Poly(SymPy.coeffs(SymPy.Poly(res, SymPy.Sym(p.var))), p.var)
 end
 
-# Base.copysign(s::SymPy.Sym, i::Int64) = copysign(s, SymPy.Sym(i))
-# Base.copysign(s::SymPy.Sym, f::Float64) = copysign(s, SymPy.Sym(f))
+Base.copysign(s::SymPy.Sym, i::Int64) = copysign(s, SymPy.Sym(i))
+Base.copysign(s::SymPy.Sym, f::Float64) = copysign(s, SymPy.Sym(f))
 
 function fallingfactorial(x, j)
     result = Poly([1], string(x))
