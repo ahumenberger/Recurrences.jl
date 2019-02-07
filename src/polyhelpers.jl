@@ -88,3 +88,35 @@ end
 
 lc(p::Poly) = coeffs(p)[end]
 coeff2(p::Poly, s::Int) = s <= degree(p) ? coeffs(p)[s+1] : 0
+
+function mroots(poly::Poly{T}) where {T}
+    roots = Polynomials.roots(poly)
+    Dict([(r, count(x -> x==r, roots)) for r in Base.unique(roots)])
+end
+
+mroots(p::Poly{SymPy.Sym}) = SymPy.polyroots(convert(SymPy.Sym, p))
+
+# function mroots(p::Poly{SymPy.Sym})
+    # T = SymPy.Sym
+    # length(p) == 0 && return zeros(T, 0)
+
+    # num_leading_zeros = 0
+    # while p[num_leading_zeros] == zero(T)
+    #     if num_leading_zeros == length(p)-1
+    #         return zeros(T, 0)
+    #     end
+    #     num_leading_zeros += 1
+    # end
+    # num_trailing_zeros = 0
+    # while p[end - num_trailing_zeros] == zero(T)
+    #     num_trailing_zeros += 1
+    # end
+    # n = lastindex(p)-(num_leading_zeros + num_trailing_zeros)
+    # n < 1 && return zeros(T, length(p) - num_trailing_zeros - 1)
+
+    # companion = diagm(-1 => ones(T, n-1))
+    # an = p[end-num_trailing_zeros]
+    # companion[1,:] = -p[(end-num_trailing_zeros-1):-1:num_leading_zeros] / an
+
+    # companion[:eigenvals]()
+# end
