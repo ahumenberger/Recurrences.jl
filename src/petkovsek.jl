@@ -55,7 +55,8 @@ function algpoly(polylist::Vector{Poly{T}}, f::Poly{T}, n) where {T}
     end
     coefficients = coeffs(poly)
     filter!(e -> e != 0, coefficients)
-    return values(SymPy.solve(coefficients, varlist)) |> collect
+    sol = SymPy.solve(coefficients, varlist)
+    return [subs(c, sol) for c in coeffs(genpoly)]
 end
 
 function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
@@ -135,9 +136,9 @@ function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
     return solutions
 end
 
-function commonfactors(p::Poly, q::Poly)
+function commonfactors(p::Poly{T}, q::Poly{T}) where {T}
     if p == 1 || q == 1
-        return 1, Pair(FallingFactorial(p), FallingFactorial(q))
+        return Poly(one(T), p.var) // 1, Pair(FallingFactorial(p), FallingFactorial(q))
     end
     k = variables(SymPy.Sym)
     res = resultant(shift(p, k), q)
@@ -145,7 +146,7 @@ function commonfactors(p::Poly, q::Poly)
     filter!(x -> isinteger(x), roots)
     @debug "Integer roots of resultant" roots
     if isempty(roots)
-        return 1, Pair(FallingFactorial(p), FallingFactorial(q))
+        return Poly(one(T), p.var) // 1, Pair(FallingFactorial(p), FallingFactorial(q))
     end
 
     r = convert(Int64, roots[1])

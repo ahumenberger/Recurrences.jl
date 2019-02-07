@@ -63,8 +63,9 @@ end
 function factors(expr::Sym)
     # c, list = factor_list(expr)
     # factor_list returns a Sym object instead of a tuple, does not seem to be right!
+    # TOOO: add multiplicities
     c, list = factor_list(expr).x
-    result = [x^y for (x,y) in list]
+    result = [x for (x,y) in list]
     # if c != 1
     #     push!(result, c)
     # end
