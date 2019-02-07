@@ -56,7 +56,17 @@ function algpoly(polylist::Vector{Poly{T}}, f::Poly{T}, n) where {T}
     coefficients = coeffs(poly)
     filter!(e -> e != 0, coefficients)
     sol = SymPy.solve(coefficients, varlist)
-    return [subs(c, sol) for c in coeffs(genpoly)]
+    missing = setdiff(varlist, keys(sol))
+    p = Poly([subs(c, sol) for c in coeffs(genpoly)], string(n))
+    solutions = Poly{T}[]
+    for v in missing
+        c = coeff(p, v)
+        if !iszero(c)
+            push!(solutions, c)
+        end
+    end
+    @debug "Solution for coefficients" sol p solutions
+    return solutions
 end
 
 function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
@@ -117,15 +127,9 @@ function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
                 polylist2 = [x^(i-1)*p for (i,p) in enumerate(plist)]
                 
                 polysols = algpoly(polylist2, Poly(T[0], string(n)), n)
-                if isempty(polysols)
-                    continue
-                end
-                # polysols = collect(values(polysols))
                 @debug "Solutions of algpoly" polysols
 
-                filter!(e -> e != 0, polysols)
-                if length(polysols) > 0
-                    c = Poly(polysols, string(n))
+                for c in polysols
                     s = x * (aelem // belem) * (shift(c, 1) // c)
                     @info "Solution" s
                     push!(solutions, s)

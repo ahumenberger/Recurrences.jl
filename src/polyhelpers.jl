@@ -36,6 +36,8 @@ function gcd(p::Poly{SymPy.Sym}, q::Poly{SymPy.Sym})
     Poly(SymPy.coeffs(SymPy.Poly(res, SymPy.Sym(p.var))), p.var)
 end
 
+coeff(p::Poly{T}, x::T) where {T} = Poly(coeff.(coeffs(p), x), p.var)
+
 Base.copysign(s::SymPy.Sym, i::Int64) = copysign(s, SymPy.Sym(i))
 Base.copysign(s::SymPy.Sym, f::Float64) = copysign(s, SymPy.Sym(f))
 
@@ -74,7 +76,7 @@ function factors(expr::Sym)
 end
 
 function shift(p::Poly{T}, s::Union{Int64, T}) where {T}
-    c = T[polyval(polyder(p, i), s) / factorial(i) for i in 0:degree(p)]
+    c = T[polyval(polyder(p, i), s) / factorial(T(i)) for i in 0:degree(p)]
     Poly(c, p.var)
 end
 
