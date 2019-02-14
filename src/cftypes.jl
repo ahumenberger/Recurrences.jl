@@ -89,12 +89,13 @@ end
 #     simplify(transpose(vec) * cf.xvec)
 # end
 
+# ------------------------------------------------------------------------------
 
 function Base.:*(cf::CFiniteClosedForm{T}, coeff::Number) where {T}
     xvec = coeff .* cf.xvec
     CFiniteClosedForm(cf.func, cf.arg, cf.mvec, cf.rvec, xvec, cf.initvec, cf.instance)
 end
-Base.:*(coeff::Number, cf::CFiniteClosedForm{T}) where {T} = cf*coeff
+Base.:*(coeff::Number, cf::CFiniteClosedForm{T}) where {T} = cf * coeff
 
 function Base.:+(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T}
     @assert cf1.arg == cf2.arg "Argument mismatch, got $(cf1.arg) and $(cf2.arg)"
@@ -107,6 +108,14 @@ function Base.:+(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T}
 end
 Base.:-(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T} = cf1 + (-1) * cf2
 
+function Base.:*(c::HyperClosedForm{T}, coeff::Number) where {T}
+    xvec = coeff .* c.xvec
+    HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, xvec, c.initvec, c.instance)
+end
+Base.:*(coeff::Number, c::HyperClosedForm{T}) where {T} = c * coeff
+
+# ------------------------------------------------------------------------------
+
 function (c::CFiniteClosedForm{T})(n::Union{Int, T}) where {T}
     CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, c.arg, n) for x in c.xvec], c.initvec, subs(c.instance, c.arg, n))
 end
@@ -114,6 +123,8 @@ end
 function (c::HyperClosedForm{T})(n::Union{Int, T}) where {T}
     HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, c.arg, n) for x in c.xvec], c.initvec, subs(c.instance, c.arg, n))
 end
+
+# ------------------------------------------------------------------------------
 
 function reset(c::CFiniteClosedForm{T}) where {T}
     if has(c.instance, c.arg)
@@ -127,6 +138,21 @@ function reset(c::CFiniteClosedForm{T}) where {T}
     end
     CFiniteClosedForm(c.func, c.arg, c.mvec, rvec, xvec, c.initvec)
 end
+
+function reset(c::HyperClosedForm{T}) where {T}
+    if has(c.instance, c.arg)
+        shift = c.instance - c.arg
+        factors = [e^shift for e in c.evec]
+        xvec = c.xvec .* factors
+        evec = c.evec
+    else
+        xvec = c.xvec .* (c.evec .^ c.instance)
+        evec = fill(T(1), length(c.rvec))
+    end
+    CFiniteClosedForm(c.func, c.arg, c.mvec, rvec, xvec, c.initvec)
+end
+
+# ------------------------------------------------------------------------------
 
 init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d) for x in c.xvec], c.initvec, c.instance)
 

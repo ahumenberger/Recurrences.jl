@@ -117,6 +117,27 @@ function monic(lrs::LinearRecSystem)
     LinearRecSystem(lrs.funcs, lrs.arg, mat, inhom)
 end
 
+function blockdiagonal(m::Matrix{T}) where {T}
+    @assert size(m, 1) == size(m, 2) "Matrix is not square."
+    s = size(m, 1)
+    row = zeros(T, s)
+    blocks = Matrix{T}[]
+    i0 = 1
+    for i in 1:s-1
+        row[i] = 0
+        row[i+1] = 1
+        if m[i,:] != row
+            push!(blocks, m[i0:i, i0:i])
+            i0 = i+1
+        end
+    end
+    if i0 <= s
+        push!(blocks, m[i0:s, i0:s])        
+    end
+    @assert cat(blocks..., dims=(1,2)) == m "Matrix not in block diagonal form."
+    blocks
+end
+
 function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
@@ -134,7 +155,8 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     if !iszero(C[1:end-1,2:end] - UniformScaling(1))
         @error "Fix needed! Not a companion matrix:" C
     end
-    @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A inv(A) M
+    @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A M
+    # @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A inv(A) M
 
     # p = Polynomials.Poly(auxcoeff)
 
@@ -169,8 +191,6 @@ function solve(lrs::LinearRecSystem{T}) where {T}
         C, A = decouple(lrs)
         coeffpoly = sum(c * Poly(pascal(i-1, alt = true)) for (i, c) in enumerate(C)) + Poly(pascal(length(C), alt = true))
         @debug "coeffpoly" simplify.(Polynomials.coeffs(coeffpoly))
-        # @assert false
-        # coeffs = ([C[end,:]; -1]) |> subs(lrs.arg, lrs.arg + size(C, 1))
         coeffs = Polynomials.coeffs(coeffpoly)
         if any(has.(coeffs, lrs.arg))
             @error "Only C-finite recurrences supported by now"
