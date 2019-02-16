@@ -10,16 +10,22 @@ function rational_form(T::Matrix{S}, σ, σ_inv, δ) where {S}
             j += 1
         end
         if j <= n
+            @debug "Before lemma 2" B T
             transform_lemma2(T, i0, i, j, σ, σ_inv, δ, B)
+            @debug "After lemma 2" B T
             i += 1
         else
+            @debug "Before lemma 3" B T
             transform_lemma3(T, i0, i, σ, δ, B)
+            @debug "After lemma 3" B T
             i1 = i + 1
             while i1 <= n && T[i1,i0] == 0
                 i1 += 1
             end
             if i1 <= n
+                @debug "Before lemma 5" B T
                 transform_lemma5(T, i0, i, i1, σ, σ_inv, δ, B)
+                @debug "After lemma 5" B T
                 i += 1
             else
                 i += 1
@@ -69,15 +75,18 @@ function transformR(T::Matrix{S}, i0::Int, B::Matrix{S}) where {S}
         T[i0,i] = c[i]
     end
 
-    for i in i0:n
+    for i in 1:n
+    # for i in i0:n
         c[i] = B[i,n]
     end
     for j in n:-1:i0+1
-        for i in i0:n
+        for i in 1:n
+        # for i in i0:n
             B[i,j] = B[i,j-1]
         end
     end
-    for i in i0:n
+    for i in 1:n
+    # for i in i0:n
         B[i,i0] = c[i]
     end
     return T, B
@@ -94,7 +103,7 @@ function transform_lemma2(T::Matrix{S}, i0::Int, i::Int, l::Int, σ, σ_inv, δ,
         T[i+1,j] /= a # D2
     end
     T[i+1,i+1] += δ(a) / a # D3
-    for j in i0:n
+    for j in 1:n
         B[j,i+1] *= a # basis change
     end
 
@@ -111,7 +120,7 @@ function transform_lemma2(T::Matrix{S}, i0::Int, i::Int, l::Int, σ, σ_inv, δ,
             end
         end
         T[i+1,k] += δ(a) # C3
-        for j in i0:n
+        for j in 1:n
             B[j,k] += a * B[j,i+1] # basis change
         end
     end

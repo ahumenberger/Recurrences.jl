@@ -1,7 +1,11 @@
 export CFiniteClosedForm, HyperClosedForm
 export closedform, expression
 
-struct CFiniteClosedForm{T}
+import Base: zero
+
+abstract type ClosedForm end
+
+struct CFiniteClosedForm{T} <: ClosedForm
     func::T
     arg::T
     mvec::Vector{T}
@@ -12,9 +16,8 @@ struct CFiniteClosedForm{T}
 end
 
 CFiniteClosedForm(func::T, arg::T, mvec::Vector{T}, rvec::Vector{T}, xvec::Vector{T}, initvec::Vector{T}) where {T} = CFiniteClosedForm(func, arg, mvec, rvec, xvec, initvec, arg)
-CFiniteClosedForm(func::T, cf::CFiniteClosedForm{T}) where {T} = CFiniteClosedForm(func, cf.arg, cf.mvec, cf.rvec, cf.xvec, cf.initvec, cf.instance)
 
-struct HyperClosedForm{T}
+struct HyperClosedForm{T} <: ClosedForm
     func::T
     arg::T
     evec::Vector{T} # bases of exponentials
@@ -26,6 +29,14 @@ struct HyperClosedForm{T}
 end
 
 HyperClosedForm(func::T, arg::T, evec::Vector{T}, rvec::Vector{RationalFunction{T}}, fvec::Vector{Pair{FallingFactorial{T},FallingFactorial{T}}}, xvec::Vector{T}, initvec::Vector{T}) where {T} = HyperClosedForm(func, arg, evec, rvec, fvec, xvec, initvec, arg)
+
+# ------------------------------------------------------------------------------
+
+ClosedForm(func::T, cf::CFiniteClosedForm{T}) where {T} = CFiniteClosedForm(func, cf.arg, cf.mvec, cf.rvec, cf.xvec, cf.initvec, cf.instance)
+ClosedForm(func::T, cf::HyperClosedForm{T}) where {T} = HyperClosedForm(func, cf.arg, cf.evec, cf.rvec, cf.fvec, cf.xvec, cf.initvec, cf.instance)
+
+zero(c::CFiniteClosedForm{T}) where {T} = c * 0
+zero(c::HyperClosedForm{T}) where {T} = c * 0
 
 # ------------------------------------------------------------------------------
 

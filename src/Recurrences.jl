@@ -9,6 +9,8 @@ using Polynomials
 using MacroTools
 
 import Polynomials: Poly, printpoly, degree, coeffs, polyval, polyder
+import Base: convert
+import SymPy: coeff
 
 include("rationalfunction.jl")
 include("polyhelpers.jl")

@@ -141,38 +141,47 @@ end
 function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
-    # # lrs = homogenize(lrs)
-    # σ = x -> x |> subs(lrs.arg, lrs.arg+1)
-    # σinv = x -> x |> subs(lrs.arg, lrs.arg-1)
-    # δ = x -> 0
 
     σ = x -> x |> subs(lrs.arg, lrs.arg-1)
     σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
     δ = x -> σ(x) - x
     M = σ.(-lrs.mat[1]) - UniformScaling(1)
     C, A = rational_form(copy(M), σ, σinv, δ)
-    # A = -A
-    if !iszero(C[1:end-1,2:end] - UniformScaling(1))
-        @error "Fix needed! Not a companion matrix:" C
-    end
+
     @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A M
-    # @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A inv(A) M
+    @assert inv(A) * M * A == C "Zürcher wrong"
 
-    # p = Polynomials.Poly(auxcoeff)
+    σinv.(C), A
+end
 
-    # for i in 1:size(C, 1)
-    #     q = Polynomials.Poly(A[i,:])
-    #     d, r = divrem(p,q)
-    #     @assert r == 0 "Remainder not zero"
-    #     v = Polynomials.coeffs(d)
-    #     k = fill(lrs.funcs[i], length(v))
-    #     d = [Dict([c]) for c in zip(k,v)]
-    #     entry = (coeffs = d, inhom = T(0))
-    #     push!(newlrs, entry)
-    #     # @info "New LRS" newlrs
-    # end
+function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
+    csize = size(C, 1)
+    @debug "Solve companion block" C
+    coeffpoly = sum(c * Poly(pascal(i-1, alt = true)) for (i, c) in enumerate(C[end,:])) + Poly(pascal(csize, alt = true))
+    @debug "Coefficients for recurrence" simplify.(Polynomials.coeffs(coeffpoly))
+    coeffs = Polynomials.coeffs(coeffpoly)
+    if any(has.(coeffs, arg))
+        @error "Only C-finite recurrences supported by now"
+        RecurrenceT = HyperRecurrence
+        ClosedFormT = HyperClosedForm
+    else
+        RecurrenceT = CFiniteRecurrence
+        ClosedFormT = CFiniteClosedForm
+    end
+    rec = RecurrenceT(unique(T), arg, coeffs)
+    @debug "Reference recurrence" rec
+    cf = closedform(rec)
 
-    σinv.(C[end,:]), A
+    initsubs = Dict(zip(cf.initvec, initvec[1:length(cf.initvec)]))
+    @debug "Rules for substitution of initial values" initsubs
+    cf = init(cf, initsubs)
+
+    cforms = ClosedForm[cf]
+    for i in 1:csize-1
+        push!(cforms, cforms[i](arg+1) - cforms[i](arg))
+    end
+
+    cforms
 end
 
 function solve(lrs::LinearRecSystem{T}) where {T}
@@ -186,51 +195,38 @@ function solve(lrs::LinearRecSystem{T}) where {T}
         end
     else
         lrs = monic(lrs)
-        @debug "" lrs
+        @debug "Monic LRS" lrs
         lrs, oldlrs = homogenize(lrs), lrs
-        C, A = decouple(lrs)
-        coeffpoly = sum(c * Poly(pascal(i-1, alt = true)) for (i, c) in enumerate(C)) + Poly(pascal(length(C), alt = true))
-        @debug "coeffpoly" simplify.(Polynomials.coeffs(coeffpoly))
-        coeffs = Polynomials.coeffs(coeffpoly)
-        if any(has.(coeffs, lrs.arg))
-            @error "Only C-finite recurrences supported by now"
-            RecurrenceT = HyperRecurrence
-            # ClosedFormT = CFiniteClosedForm
-        else
-            RecurrenceT = CFiniteRecurrence
-            ClosedFormT = CFiniteClosedForm
-        end
-        rec = RecurrenceT(unique(T), lrs.arg, coeffs)
-        @debug "Reference recurrence" rec
-        cf = closedform(rec)
-        @debug "Closed form of reference recurrence" cf
+        M, A = decouple(lrs)
+        blocks = blockdiagonal(M)
+
         initvec = [initvariable(f, 0) for f in lrs.funcs]
         if lrs.funcs != oldlrs.funcs
             # Assume lrs got homogenized, therefore initial value of introduced variable is 1
             initvec[end] = T(1)
         end
-        # @debug "" inv(A) * initvec
+        maxsize = maximum(size.(blocks, 1))
         M = -lrs.mat[1]
         S = UniformScaling(1)
         D = inv(A)
-        ivec = T[]
-        for i in 0:order(rec)-1
-            # ival = subs((D * initvec)[1], lrs.arg, i)
-            ival = (subs(D, lrs.arg, i) * S * initvec)[1]
-            push!(ivec, ival)
-            # @debug "initval for $(i)" ival
+        imat = Matrix{T}(undef, size(M, 1), 0)
+        for i in 0:maxsize-1
+            ivec = (subs(D, lrs.arg, i) * S * initvec)
+            imat = hcat(imat, ivec)
             S = subs(M, lrs.arg, i+1) * S
-            # D = M * D
         end
-        initsubs = Dict(zip(cf.initvec, ivec))
-        @debug "Rules for substitution of initial values" initsubs
-        cf = init(cf, initsubs)
-        @debug "Closed form after substitution of initial values" cf
-        # Compute only solutions for recurrences in original system
+        @debug "Matrix containing initial values" imat
+        result = ClosedForm[]
+        i0 = 1
+        for C in blocks
+            append!(result, solveblock(C, imat[i0,:], lrs.arg))
+            i0 += size(C, 1)
+        end
+        result = A * result
+        @debug "Final closed forms" result
+
         for i in 1:length(oldlrs.funcs)
-            coeffs = A[i,:]
-            cform = sum(c * cf(cf.arg + (j - 1)) for (j, c) in enumerate(coeffs))
-            push!(cforms, ClosedFormT(lrs.funcs[i], cform))
+            push!(cforms, ClosedForm(lrs.funcs[i], result[i]))
         end
     end
     cforms
