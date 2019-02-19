@@ -148,8 +148,8 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     M = σ.(-lrs.mat[1]) - UniformScaling(1)
     C, A = rational_form(copy(M), σ, σinv, δ)
 
-    @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A M
-    @assert inv(A) * M * A == C "Zürcher wrong"
+    @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A M simplify.(inv(A) * M * A)
+    @assert simplify.(inv(A) * M * A) == C "Zürcher wrong"
 
     σinv.(C), A
 end

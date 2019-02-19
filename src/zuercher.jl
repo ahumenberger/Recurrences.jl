@@ -40,10 +40,14 @@ function transformP(T::Matrix{S}, i0::Int, i::Int, k::Int, B::Matrix{S}) where {
     n = size(T, 1)
     for j in i0:n
         T[j,i], T[j,k] = T[j,k], T[j,i]
-        B[j,i], B[j,k] = B[j,k], B[j,i]
+        # B[j,i], B[j,k] = B[j,k], B[j,i]
     end
     for j in i0:n
         T[i,j], T[k,j] = T[k,j], T[i,j]
+    end
+    for j in 1:n
+        # T[j,i], T[j,k] = T[j,k], T[j,i]
+        B[j,i], B[j,k] = B[j,k], B[j,i]
     end
     return T, B
 end
@@ -134,7 +138,8 @@ function transform_lemma2(T::Matrix{S}, i0::Int, i::Int, l::Int, σ, σ_inv, δ,
             T[i+1,j] -= a * T[k,j] # C2
         end
         T[i+1,k] += δ(a) # C3
-        for j in i0:n
+        for j in 1:n
+        # for j in i0:n
             B[j,k] += a * B[j,i+1] # basis change
         end
     end
@@ -151,7 +156,8 @@ function transform_lemma3(T::Matrix{S}, i0::Int, i::Int, σ, δ, B::Matrix{S}) w
             end
             T[k,l] = 0 # C2
             T[k,l-1] += δ(a) # C3
-            for j in i0:n
+            for j in 1:n
+            # for j in i0:n
                 B[j,l-1] += a * B[j,k]
             end
         end
@@ -179,7 +185,8 @@ function transform_lemma4(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
             end
         end
         T[k+1,l] += δ(a) # C3
-        for j in i0:n
+        for j in 1:n
+        # for j in i0:n
             B[j,l] += a * B[j,k+1] # basis change
         end
     end
@@ -196,7 +203,8 @@ function transform_lemma4(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
             T[k+1,j] -= a * T[l,j]
         end
         T[k+1,l] += δ(a) # C3
-        for j in i0:n
+        for j in 1:n
+        # for j in i0:n
             B[j,l] += a * B[j,k+1] # basis change
         end
     end
@@ -216,7 +224,8 @@ function transform_lemma5(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
         T[n,j] /= a
     end
     T[n,n] += δ(a) / a # D3
-    for j in i0:n
+    for j in 1:n
+    # for j in i0:n
         B[j,n] *= a # basis change
     end
 
@@ -231,7 +240,8 @@ function transform_lemma5(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
                 T[l,j] -= a * T[n,j]
             end
             T[l,n] += δ(a) # C3
-            for j in i0:n
+            for j in 1:n
+            # for j in i0:n
                 B[j,n] += a * B[j,l] # basis change
             end
         end
