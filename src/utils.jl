@@ -1,5 +1,5 @@
 
-function variables(::Type{Sym}; n::Int = 1, unique::Bool = true)
+function variables(::Type{T}; n::Int = 1, unique::Bool = true) where {T}
     if unique
         global var_count += n
         varcnt = var_count
@@ -7,10 +7,13 @@ function variables(::Type{Sym}; n::Int = 1, unique::Bool = true)
         varcnt = n
     end
     if n == 1
-        return Sym("ω$(varcnt)")
+        return var(T, "ω$(varcnt)")
     end
-    return [Sym("ω$i") for i in varcnt-n+1:varcnt]
+    return [var(T, "ω$i") for i in varcnt-n+1:varcnt]
 end
+
+var(::Type{SymPy.Sym}, s::String) = SymPy.Sym(s)
+var(::Type{SymEngine.Basic}, s::String) = SymEngine.symbols(s)
 
 function summands(expr::Sym)
     expr = expand(expr)
@@ -20,8 +23,10 @@ function summands(expr::Sym)
     end
     [expr]
 end
+summands(x::SymEngine.Basic) = convert.(Basic, summands(convert(Sym, x)))
 
 lcm2(n::Sym, rest::Sym...) = SymPy.lcm(n, lcm2(rest...))
+lcm2(x::Basic...) = convert(Basic, lcm2(convert.(Sym, x)...))
 lcm2() = 1
 
 function pascal(n; alt = false)

@@ -30,11 +30,11 @@ end
 Base.://(n::Poly{T}, d::Poly{T}) where T = RationalFunction(n, d)
 Base.://(n::S, d::Poly{T}) where {T,S<:Number} = RationalFunction(n, d)
 Base.://(n::Poly{T}, d::S) where {T,S<:Number} = RationalFunction(n, d)
-function Base.://(x::RationalFunction{T}, y::RationalFunction{T}) where T
-    xn, yn = divgcd(x.num, y.num)
-    xd, yd = divgcd(x.den, y.den)
-    (xn * yd) // (xd * yn)
-end
+# function Base.://(x::RationalFunction{T}, y::RationalFunction{T}) where T
+#     xn, yn = divgcd(x.num, y.num)
+#     xd, yd = divgcd(x.den, y.den)
+#     (xn * yd) // (xd * yn)
+# end
 function Base.://(x::RationalFunction{T}, y::T) where T
     xn, yn = divgcd(x.num, y)
     xn // (x.den * yn)
@@ -45,6 +45,7 @@ function Base.://(x::T, y::RationalFunction{T}) where T
 end
 
 function Base.:*(x::RationalFunction, y::RationalFunction)
+    x, y = promote(x, y)
     xn,yd = divgcd(x.num, y.den)
     xd,yn = divgcd(x.den, y.num)
     (xn * yn) // (xd * yd)
@@ -61,12 +62,13 @@ Base.:*(x::Number, y::RationalFunction{T}) where T = y * x
 
 ispoly(x::RationalFunction) = x.den == 1
 
-numerator(x::RationalFunction) = x.num
-denominator(x::RationalFunction) = x.den
+Base.numerator(x::RationalFunction) = x.num
+Base.denominator(x::RationalFunction) = x.den
 
 Base.promote_rule(::Type{RationalFunction{T}}, ::Type{RationalFunction{S}}) where {T,S} = RationalFunction{promote_type(S,T)}
 Base.promote_rule(::Type{Poly{T}}, ::Type{T}) where {T} = Poly{T}
 
+Base.convert(::Type{RationalFunction{T}}, x::RationalFunction{S}) where {T,S} = RationalFunction(convert(Poly{T}, numerator(x)), convert(Poly{T}, denominator(x)))
 Base.convert(::Type{RationalFunction{T}}, x::Poly{T}) where {T} = RationalFunction(x)
 Base.convert(::Type{RationalFunction{T}}, x::Number) where {T} = RationalFunction(T(x), T(1))
 
@@ -80,6 +82,6 @@ shift(r::RationalFunction{T}, s::Union{Int64, T}) where {T} = RationalFunction(s
 
 (r::RationalFunction{T})(n::Union{Int, T}) where {T} = polyval(numerator(r), n) / polyval(denominator(r), n)
 
-function convert(::Type{T}, r::RationalFunction{T}) where {T <: SymPy.Sym}
-    convert(T, numerator(r)) / convert(T, denominator(r))
-end
+# function convert(::Type{T}, r::RationalFunction{T}) where {T <: SymPy.Sym}
+#     convert(T, numerator(r)) / convert(T, denominator(r))
+# end

@@ -20,12 +20,21 @@ end
 function convert(::Type{SymPy.Sym}, p::Poly)
     x = SymPy.Sym(string(p.var))
     sum(c*x^(i-1) for (i, c) in enumerate(coeffs(p)))
+    # SymPy.Poly(sum(c*x^(i-1) for (i, c) in enumerate(coeffs(p))), x)
 end
+
+convert(::Type{Poly{SymPy.Sym}}, p::Poly{SymEngine.Basic}) = Poly(convert.(SymPy.Sym, coeffs(p)), p.var)
+convert(::Type{Poly{SymEngine.Basic}}, p::Poly{SymPy.Sym}) = Poly(convert.(SymEngine.Basic, coeffs(p)), p.var)
+
+convert(::Type{SymPy.Sym}, x::SymEngine.Basic) = SymPy.Sym(string(x))
+convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = convert(SymEngine.Basic, string(x))
+
 convert(::Type{Poly}, p::SymPy.Sym) = Poly(SymPy.coeffs(p))
 
-function resultant(p::Poly, q::Poly)
-    res = SymPy.resultant(convert(SymPy.Sym, p), convert(SymPy.Sym, q))
-    convert(Poly, res)
+function resultant(p::Poly{T}, q::Poly{T}) where {T}
+    res = SymPy.resultant(convert(SymPy.Sym, convert(Poly{Sym}, p)), convert(SymPy.Sym, convert(Poly{Sym}, q)))
+    cf = coeffs(convert(T, res), convert(T, p.var))
+    Poly(cf, p.var)
 end
 
 function gcd(p::Poly{SymPy.Sym}, q::Poly{SymPy.Sym})
@@ -35,6 +44,7 @@ function gcd(p::Poly{SymPy.Sym}, q::Poly{SymPy.Sym})
     end
     Poly(SymPy.coeffs(SymPy.Poly(res, SymPy.Sym(p.var))), p.var)
 end
+gcd(p::Poly{SymEngine.Basic}, q::Poly{SymEngine.Basic}) = convert(Poly{Basic}, gcd(convert(Poly{Sym}, p), convert(Poly{Sym}, q)))
 
 coeff(p::Poly{T}, x::T) where {T} = Poly(coeff.(coeffs(p), x), p.var)
 
@@ -55,7 +65,7 @@ function symset(v::String, j::Int64)
     return Sym[Sym("$v$i") for i in 1:j]
 end
 
-denominator(s::SymPy.Sym) = denom(s)
+Base.denominator(s::SymPy.Sym) = denom(s)
 
 function simplify(p::Poly)
     l = lcm2(denominator.(coeffs(p))...)
@@ -80,10 +90,12 @@ function shift(p::Poly{T}, s::Union{Int64, T}) where {T}
     Poly(c, p.var)
 end
 
-function factors(p::Poly)
+function factors(p::Poly{T}) where {T}
     sympoly = Sym(sprint(printpoly, p))
     facts = factors(sympoly)
-    Poly.(SymPy.coeffs.(facts), p.var)
+    facts = convert(Vector{T}, facts)
+    arg = convert(T, p.var)
+    Poly.(coeffs.(facts, arg), p.var)
 end
 
 lc(p::Poly) = coeffs(p)[end]
@@ -94,7 +106,18 @@ function mroots(poly::Poly{T}) where {T}
     Dict([(r, count(x -> x==r, roots)) for r in Base.unique(roots)])
 end
 
+Base.promote_rule(::Type{T}, ::Type{SymEngine.Basic}) where{T<:SymPy.SymbolicObject} = SymEngine.Basic
+
+Base.isequal(x::SymEngine.Basic, y::SymPy.Sym) = Base.isequal(promote(x, y)...)
+
 mroots(p::Poly{SymPy.Sym}) = SymPy.polyroots(convert(SymPy.Sym, p))
+mroots(p::Poly{SymEngine.Basic}) = convert(Dict{Basic,Int}, mroots(convert(Poly{SymPy.Sym}, p)))
+
+
+# simplify(x::SymEngine.Basic) = SymEngine.expand(x)
+simplify(x::SymEngine.Basic) = convert(SymEngine.Basic, SymPy.simplify(convert(SymPy.Sym, x)))
+
+# Base.promote_rule(::Type{Basic}, ::Type{Int}) = Basic
 
 # function mroots(p::Poly{SymPy.Sym})
     # T = SymPy.Sym

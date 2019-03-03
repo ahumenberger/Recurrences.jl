@@ -33,7 +33,7 @@ function algpoly(polylist::Vector{Poly{T}}, f::Poly{T}, n) where {T}
     d = convert(Int64, max(first, second, third, 0))
 
     # Use method of undetermined coefficients to find the output polynomial.
-    varlist = symset("a", d+1)
+    varlist = variables(T, n=d+1)
     # pol = 0 * n
     # for i in 0:d
     #     pol += n^i * varlist[i+1]
@@ -51,11 +51,11 @@ function algpoly(polylist::Vector{Poly{T}}, f::Poly{T}, n) where {T}
     poly -= f
     @debug "Poly" poly
     if iszero(poly)
-        return T[1]
+        return Poly(one(T), string(n))
     end
     coefficients = coeffs(poly)
     filter!(e -> e != 0, coefficients)
-    sol = SymPy.solve(coefficients, varlist)
+    sol = solve(coefficients, varlist)
     missing = setdiff(varlist, keys(sol))
     p = Poly([subs(c, sol) for c in coeffs(genpoly)], string(n))
     solutions = Poly{T}[]
@@ -101,7 +101,7 @@ function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
     for aelem in alist
         for belem in blist
             @debug "Monic factors" aelem belem
-            plist = []
+            plist = Poly{T}[]
             for i in 0:d-1 
                 pi = polylist[i+1]
                 for j in 0:i-1
@@ -114,22 +114,26 @@ function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
             end
 
             m = maximum(degree.(plist))
-            alpha = coeff2.(plist, m)
-            @syms z
-            zpol = 0*z
-            for i in 0:length(alpha) - 1
-                zpol += alpha[i+1]*z^i
-            end
+            alpha = convert(Vector{T}, coeff2.(plist, m))
+            # @syms z
+            # zpol = 0*z
+            # for i in 0:length(alpha) - 1
+            #     zpol += alpha[i+1]*z^i
+            # end
+            zpol = Poly(alpha)
 
-            vals = [key for (key,val) in polyroots(zpol) if key != 0]
+            @debug "" zpol typeof(zpol) typeof(alpha) typeof(plist)
+            vals = [key for (key,val) in mroots(zpol) if key != 0]
             @debug "Roots" zpol vals
             for x in vals
                 polylist2 = [x^(i-1)*p for (i,p) in enumerate(plist)]
+                @debug "" typeof(polylist2)
                 
                 polysols = algpoly(polylist2, Poly(T[0], string(n)), n)
                 @debug "Solutions of algpoly" polysols
 
                 for c in polysols
+                    @debug "" c
                     s = x * (aelem // belem) * (shift(c, 1) // c)
                     @info "Solution" s
                     push!(solutions, s)
@@ -144,7 +148,7 @@ function commonfactors(p::Poly{T}, q::Poly{T}) where {T}
     if p == 1 || q == 1
         return Poly(one(T), p.var) // 1, Pair(FallingFactorial(p), FallingFactorial(q))
     end
-    k = variables(SymPy.Sym)
+    k = variables(T)
     res = resultant(shift(p, k), q)
     roots = keys(mroots(res)) |> collect
     filter!(x -> isinteger(x), roots)
@@ -202,16 +206,18 @@ function hgterms(s::RationalFunction)
     c, 1, Pair(FallingFactorial(num), FallingFactorial(den))
 end
 
-function petkovsek(coeffs::Vector{T}, arg::T) where {T}
-    coeffs = simplify.(coeffs)
-    @debug "Petkovsek - input" coeffs
-    ls = summands.(coeffs) |> Iterators.flatten
-    ds = denom.(ls)
+function petkovsek(cf::Vector{T}, arg::T) where {T}
+    cf = simplify.(cf)
+    @debug "Petkovsek - input" cf
+    ls = summands.(cf) |> Iterators.flatten
+    ds = Base.denominator.(ls)
     val = lcm2(ds...)
-    coeffs *= val
-    coeffs = simplify.(coeffs)
-    coeffs = SymPy.Poly.(coeffs, arg)
-    hyper = alghyper(Poly.(SymPy.coeffs.(coeffs), string(arg)), arg)
+    @info "" ds val
+    cf *= val
+    @info "" cf
+    cf = simplify.(cf)
+    cf = coeffs.(cf, arg) # SymPy.Poly.(coeffs, arg)
+    hyper = alghyper(Poly.(cf, string(arg)), arg)
     @debug "Petkovsek - alghyper" hyper
     hgterms.(hyper)
 end

@@ -1,14 +1,15 @@
 export @rec, @lrs
 
 macro lrs(input)
-    entries = LinearEntry{SymPy.Sym}[]
-    args = SymPy.Sym[]
+    T = Basic
+    entries = LinearEntry{T}[]
+    args = T[]
     @capture(input, begin fields__ end)
     for ex in fields
         @capture(ex, lhs_ = rhs_)
         lhs = SymPy.Sym(string(lhs))
         rhs = SymPy.Sym(string(unblock(rhs)))
-        entry, arg = LinearRecEntry(lhs - rhs)
+        entry, arg = LinearRecEntry(T, lhs - rhs)
         push!(entries, entry)
         push!(args, arg)
     end
@@ -27,7 +28,9 @@ function function_symbols(expr::SymPy.Sym)
     return Sym.(collect(atoms(expr, AppliedUndef)))
 end
 
-function LinearRecEntry(expr::SymPy.Sym)
+LinearRecEntry(t::Type{T}, expr::Expr) where {T<:Union{SymPy.Sym, SymEngine.Basic}} = LinearRecEntry(t, Sym(string(expr)))
+
+function LinearRecEntry(::Type{T}, expr::SymPy.Sym) where {T<:Union{SymPy.Sym, SymEngine.Basic}}
     funcs = function_symbols(expr)
     @assert length(funcs) > 0 "Not a recurrence: no functions present"
     args = Iterators.flatten(SymPy.args.(funcs)) |> collect
@@ -48,19 +51,64 @@ function LinearRecEntry(expr::SymPy.Sym)
     end
     maxarg = convert(Int, maximum(args))
 
-    hom = SymPy.Sym(0)
-    dicts = [Dict{SymPy.Sym, SymPy.Sym}() for _ in 1:maxarg + 1]
+    hom = zero(SymPy.Sym)
+    dicts = [Dict{T,T}() for _ in 1:maxarg + 1]
     for i in 0:maxarg
         for f in funcs
             fc = f(farg + i)
             co = coeff(expr, f(farg + i))
             if !iszero(co)
                 hom += co * fc
-                g = SymPy.Sym(string(SymPy.Sym(f.x)))
+                g = var(T, string(SymPy.Sym(f.x)))
+                if T == SymEngine.Basic
+                    co = convert(SymEngine.Basic, string(co))
+                end
                 dicts[i+1][g] = co
             end
         end
     end
 
-    (coeffs = dicts, inhom = -(expr - hom)), farg
+    inhom = -(expr - hom)
+    if T == SymEngine.Basic
+        inhom = convert(SymEngine.Basic, string(inhom))
+        farg = convert(SymEngine.Basic, string(farg))
+    end
+
+
+    (coeffs = dicts, inhom = inhom), farg
 end
+
+free_symbols(x::Union{SymPy.Sym, Vector{SymPy.Sym}}) = SymPy.free_symbols(x)
+free_symbols(x::Union{SymEngine.Basic, Vector{SymEngine.Basic}}) = SymEngine.free_symbols(x)
+
+coeff(x::SymPy.Sym, b::SymPy.Sym) = SymPy.coeff(x, b)
+
+subs(x::SymPy.Sym, args...) = SymPy.subs(x, args...)
+subs(x::SymEngine.Basic, args...) = SymEngine.subs(x, args...)
+
+subs(ex::AbstractArray, args...; kwargs...) = map(u -> subs(u, args...; kwargs...), ex)
+# subs(ex::AbstractArray{SymEngine.Basic}, args...; kwargs...) = map(u -> subs(u, args...; kwargs...), ex)
+
+Base.inv(m::Matrix{SymEngine.Basic}) = convert(Matrix{SymEngine.Basic}, inv(convert(SymEngine.CDenseMatrix, m)))
+
+expand(x::Sym) = SymPy.expand(x)
+expand(x::Basic) = SymEngine.expand(x)
+
+solve(x::Vector{Sym}, y::Vector{Sym}) = SymPy.solve(x, y)
+solve(x::Vector{Basic}, y::Vector{Basic}) = convert(Dict{Basic,Basic}, solve(convert.(Sym, x), convert.(Sym, y)))
+
+coeff(x::Basic, y::Basic) = SymEngine.coeff(x, y)
+
+function coeffs(p::Sym, x::Sym)
+    @info "" p x
+    if iszero(p)
+        return []
+    end
+    SymPy.coeffs(SymPy.Poly(p, x))
+end
+function coeffs(p::Basic, x::Basic)
+    @info "" p x
+    convert.(Basic, coeffs(convert(Sym, p), convert(Sym, x)))
+end
+
+Base.:\(A::Matrix{Basic}, b::Vector{Basic}) = convert(Vector{Basic}, convert(Matrix{Sym}, A) \ convert(Vector{Sym}, b))

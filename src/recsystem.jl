@@ -101,7 +101,7 @@ function homogenize!(lrs::LinearRecSystem{T}) where {T}
         lrs.mat[i][n,n] = 1
     end
     
-    push!(lrs.funcs, unique(T))
+    push!(lrs.funcs, variables(T))
     push!(lrs.inhom, 0)
     fill!(lrs.inhom, 0)
     lrs
@@ -142,8 +142,8 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
 
-    σ = x -> x |> subs(lrs.arg, lrs.arg-1)
-    σinv = x -> x |> subs(lrs.arg, lrs.arg+1)
+    σ = x -> subs(x, lrs.arg => lrs.arg-1)
+    σinv = x -> subs(x, lrs.arg => lrs.arg+1)
     δ = x -> σ(x) - x
     M = σ.(-lrs.mat[1]) - UniformScaling(1)
     C, A = rational_form(copy(M), σ, σinv, δ)
@@ -160,7 +160,7 @@ function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
     coeffpoly = sum(c * Poly(pascal(i-1, alt = true)) for (i, c) in enumerate(C[end,:])) + Poly(pascal(csize, alt = true))
     @debug "Coefficients for recurrence" simplify.(Polynomials.coeffs(coeffpoly))
     coeffs = Polynomials.coeffs(coeffpoly)
-    if any(has.(coeffs, arg))
+    if any(arg in free_symbols(c) for c in coeffs)
         @error "Only C-finite recurrences supported by now"
         RecurrenceT = HyperRecurrence
         ClosedFormT = HyperClosedForm
@@ -168,7 +168,7 @@ function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
         RecurrenceT = CFiniteRecurrence
         ClosedFormT = CFiniteClosedForm
     end
-    rec = RecurrenceT(unique(T), arg, coeffs)
+    rec = RecurrenceT(variables(T), arg, coeffs)
     @debug "Reference recurrence" rec
     cf = closedform(rec)
 
@@ -211,7 +211,7 @@ function solve(lrs::LinearRecSystem{T}) where {T}
         D = inv(A)
         imat = Matrix{T}(undef, size(M, 1), 0)
         for i in 0:maxsize-1
-            ivec = (subs(D, lrs.arg, i) * S * initvec)
+            ivec = (subs(D, lrs.arg => i) * S * initvec)
             imat = hcat(imat, ivec)
             S = subs(M, lrs.arg, i+1) * S
         end

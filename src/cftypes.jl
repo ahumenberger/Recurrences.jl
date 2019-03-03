@@ -73,7 +73,7 @@ function closedform(rec::HyperRecurrence{T}) where {T}
     size = order(rec)
     A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
     b = [initvariable(rec.func, i) for i in 0:size - 1] 
-
+    @info "" A b
     HyperClosedForm(rec.func, rec.arg, evec, rvec, fvec, A \ b, b)
 end
 
@@ -84,12 +84,12 @@ function expression(cf::CFiniteClosedForm)
     simplify(transpose(vec) * cf.xvec)
 end
 
-function convert(::Type{T}, c::CFiniteClosedForm) where {T <: SymPy.Sym}
+function convert(::Type{T}, c::CFiniteClosedForm) where {T <: Union{SymPy.Sym,SymEngine.Basic}}
     vec = [c.instance^m * r^c.instance for (r, m) in zip(c.rvec, c.mvec)]
     simplify(transpose(vec) * c.xvec)
 end
 
-function convert(::Type{T}, c::HyperClosedForm{T}) where {T <: SymPy.Sym}
+function convert(::Type{T}, c::HyperClosedForm{T}) where {T <: Union{SymPy.Sym,SymEngine.Basic}}
     vec = [e^c.arg * convert(T, r) * convert(T, f[1]) / convert(T, f[2]) * x for (e, r, f, x) in zip(c.evec, c.rvec, c.fvec, c.xvec)]
     simplify(sum(vec))
 end
@@ -138,7 +138,7 @@ end
 # ------------------------------------------------------------------------------
 
 function reset(c::CFiniteClosedForm{T}) where {T}
-    if has(c.instance, c.arg)
+    if c.arg in free_symbols(c.instance)
         shift = c.instance - c.arg
         factors = [c.instance^m / c.arg^m * r^shift for (r, m) in zip(c.rvec, c.mvec)]
         xvec = c.xvec .* factors
@@ -165,9 +165,9 @@ end
 
 # ------------------------------------------------------------------------------
 
-init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d) for x in c.xvec], c.initvec, c.instance)
+init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
 
-init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, d) for x in c.xvec], c.initvec, c.instance)
+init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
 
 # ------------------------------------------------------------------------------
 

@@ -10,9 +10,9 @@ struct CFiniteRecurrence{T} <: LinearRecurrence
     inhom::T
 
     function CFiniteRecurrence(func::T, arg::T, coeffs::Vector{T}, inhom::T = T(0)) where {T}
-        if any(has.(coeffs, arg))
-            error("Not a C-finite recurrence.")
-        end
+        # if any(has.(coeffs, arg))
+        #     error("Not a C-finite recurrence.")
+        # end
         new{T}(func, arg, coeffs, inhom)
     end
 end
