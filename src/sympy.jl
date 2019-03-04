@@ -100,14 +100,12 @@ solve(x::Vector{Basic}, y::Vector{Basic}) = convert(Dict{Basic,Basic}, solve(con
 coeff(x::Basic, y::Basic) = SymEngine.coeff(x, y)
 
 function coeffs(p::Sym, x::Sym)
-    @info "" p x
     if iszero(p)
         return []
     end
     SymPy.coeffs(p, x)
 end
 function coeffs(p::Basic, x::Basic)
-    @info "" p x
     convert.(Basic, coeffs(convert(Sym, p), convert(Sym, x)))
 end
 
