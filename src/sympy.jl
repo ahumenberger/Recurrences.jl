@@ -89,7 +89,7 @@ subs(x::SymEngine.Basic, args...) = SymEngine.subs(x, args...)
 subs(ex::AbstractArray, args...; kwargs...) = map(u -> subs(u, args...; kwargs...), ex)
 # subs(ex::AbstractArray{SymEngine.Basic}, args...; kwargs...) = map(u -> subs(u, args...; kwargs...), ex)
 
-Base.inv(m::Matrix{SymEngine.Basic}) = convert(Matrix{SymEngine.Basic}, inv(convert(SymEngine.CDenseMatrix, m)))
+Base.inv(m::Matrix{SymEngine.Basic}) = convert(Matrix{SymEngine.Basic}, inv(convert(Matrix{Sym}, m)))
 
 expand(x::Sym) = SymPy.expand(x)
 expand(x::Basic) = SymEngine.expand(x)
