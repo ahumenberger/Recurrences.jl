@@ -104,7 +104,7 @@ function coeffs(p::Sym, x::Sym)
     if iszero(p)
         return []
     end
-    SymPy.coeffs(SymPy.Poly(p, x))
+    SymPy.coeffs(p, x)
 end
 function coeffs(p::Basic, x::Basic)
     @info "" p x
