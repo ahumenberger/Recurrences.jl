@@ -29,7 +29,7 @@ greet() = print("Hello World!")
 const AppliedUndef = PyCall.PyNULL()
 
 function __init__()
-    copy!(AppliedUndef, PyCall.pyimport_conda("sympy.core.function", "sympy")[:AppliedUndef])
+    copy!(AppliedUndef, PyCall.pyimport_conda("sympy.core.function", "sympy").AppliedUndef)
 end
 
 # function test()
