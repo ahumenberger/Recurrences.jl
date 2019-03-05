@@ -89,7 +89,7 @@ subs(x::SymEngine.Basic, args...) = SymEngine.subs(x, args...)
 subs(ex::AbstractArray, args...; kwargs...) = map(u -> subs(u, args...; kwargs...), ex)
 # subs(ex::AbstractArray{SymEngine.Basic}, args...; kwargs...) = map(u -> subs(u, args...; kwargs...), ex)
 
-Base.inv(m::Matrix{SymEngine.Basic}) = convert(Matrix{SymEngine.Basic}, inv(convert(SymEngine.CDenseMatrix, m)))
+Base.inv(m::Matrix{SymEngine.Basic}) = convert(Matrix{SymEngine.Basic}, inv(convert(Matrix{Sym}, m)))
 
 expand(x::Sym) = SymPy.expand(x)
 expand(x::Basic) = SymEngine.expand(x)
@@ -100,14 +100,12 @@ solve(x::Vector{Basic}, y::Vector{Basic}) = convert(Dict{Basic,Basic}, solve(con
 coeff(x::Basic, y::Basic) = SymEngine.coeff(x, y)
 
 function coeffs(p::Sym, x::Sym)
-    @info "" p x
     if iszero(p)
         return []
     end
-    SymPy.coeffs(SymPy.Poly(p, x))
+    SymPy.coeffs(p, x)
 end
 function coeffs(p::Basic, x::Basic)
-    @info "" p x
     convert.(Basic, coeffs(convert(Sym, p), convert(Sym, x)))
 end
 
