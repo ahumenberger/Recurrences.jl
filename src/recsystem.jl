@@ -147,8 +147,10 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     δ = x -> σ(x) - x
     M = σ.(-lrs.mat[1]) - UniformScaling(1)
     C, A = rational_form(copy(M), σ, σinv, δ)
+    C = simplify.(C)
+    A = simplify.(A)
 
-    @debug "Zürcher" input=-lrs.mat[1] simplify.(C) A M simplify.(inv(A) * M * A)
+    @info "Zürcher" input=-lrs.mat[1] C A M simplify.(inv(A) * M * A)
     @assert simplify.(inv(A) * M * A) == C "Zürcher wrong"
 
     σinv.(C), A
@@ -232,7 +234,7 @@ function solve(lrs::LinearRecSystem{T}) where {T}
     cforms
 end
 
-initvariable(v::T, i::Union{T, Int64}) where {T} = T("$(string(v))_$(i)")
+initvariable(v::T, i::Union{T, Int64}) where {T} = T("$(string(v))$(i)$(i)")
 
 var_count = 0
 
