@@ -1,6 +1,6 @@
 module Recurrences
 
-export lrs_sequential
+export lrs, lrs_sequential, lrs_parallel
 
 using SymPy
 using SymEngine
@@ -31,31 +31,60 @@ end
 replace_post(ex, s, s′) = MacroTools.postwalk(x -> x == s ? s′ : x, ex)
 gensym_unhashed(s::Symbol) = Symbol(replace(string(gensym(s)), "#"=>""))
 
-function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
-    lhss = Symbol[]
-    rhss = Expr[]
-    for assign in exprs
-        @capture(assign, lhs_ = rhs_)
-        push!(lhss, lhs)
-        push!(rhss, unblock(rhs))
+function split_assign(xs::Vector{Expr})
+    ls = Symbol[]
+    rs = Expr[]
+    for x in xs
+        @capture(x, l_ = r_)
+        push!(ls, unblock(l))
+        push!(rs, unblock(r))
     end
+    ls, rs
+end
 
-    sys = LinearRecSystem(Basic(lc), map(Basic, lhss))
+function pushexpr!(lrs::LinearRecSystem, ls::Vector{Expr}, rs::Vector{Expr})
+    for (l, r) in zip(ls, rs)
+        expr = :($l - $r)
+        entry, _ = LinearRecEntry(Basic, expr)
+        push!(lrs, entry)
+    end
+    lrs
+end
 
+function pushexpr!(lrs::LinearRecSystem, ex::Expr...)
+    for x in ex
+        if @capture(x, l_ = r_)
+            x = :($l - $r)
+        end
+        entry, _ = Recurrences.LinearRecEntry(Basic, x)
+        push!(lrs, entry)
+    end
+    lrs
+end
+
+function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
+    lhss, rhss = split_assign(exprs)
+    lrs = LinearRecSystem(Basic(lc), map(Basic, lhss))
     for (i,v) in enumerate(lhss)
         rhss = [replace_post(x, v, (i < j ? :($v($lc+1)) : :($v($lc)))) for (j,x) in enumerate(rhss)]
     end
     lhss = [Expr(:call, v, Expr(:call, :+, lc, 1)) for v in lhss]
+    pushexpr!(lrs, lhss, rhss)
+end
 
-    entries = Recurrences.LinearEntry{Basic}[]    
-    for (lhs, rhs) in zip(lhss, rhss)
-        expr = Expr(:call, :(-), lhs, rhs)
-        entry, _ = Recurrences.LinearRecEntry(Basic, expr)
-        push!(entries, entry)
+function lrs_parallel(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
+    lhss, rhss = split_assign(exprs)
+    lrs = LinearRecSystem(Basic(lc), map(Basic, lhss))
+    for (i, rhs) in enumerate(rhss)
+        rhss[i] = MacroTools.postwalk(x -> x isa Symbol && x in lhss ? :($x($lc)) : x, rhs)
     end
-    push!(sys, entries...)
-    @debug "Rec system" sys
-    sys
+    lhss = [Expr(:call, v, Expr(:call, :+, lc, 1)) for v in lhss]
+    pushexpr!(lrs, lhss, rhss)
+end
+
+function lrs(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
+    lrs = LinearRecSystem(Basic(lc))
+    pushexpr!(lrs, exprs...)
 end
 
 end # module
