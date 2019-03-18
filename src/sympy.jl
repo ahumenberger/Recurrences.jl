@@ -45,10 +45,10 @@ function LinearRecEntry(::Type{T}, expr::SymPy.Sym) where {T<:Union{SymPy.Sym, S
 
     args = args .- farg
     minarg = convert(Int, minimum(args))
-    if !iszero(minarg)
-        shifted = subs(expr, farg => farg - minarg)
-        return LinearRecEntry(shifted)
-    end
+    # if !iszero(minarg)
+    #     shifted = subs(expr, farg => farg - minarg)
+    #     return LinearRecEntry(T, shifted)
+    # end
     maxarg = convert(Int, maximum(args))
 
     hom = zero(SymPy.Sym)

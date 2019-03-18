@@ -1,4 +1,4 @@
-export CFiniteClosedForm, HyperClosedForm
+export ClosedForm, CFiniteClosedForm, HyperClosedForm
 export closedform, expression
 
 import Base: zero
@@ -92,6 +92,13 @@ end
 function convert(::Type{T}, c::HyperClosedForm{T}) where {T <: Union{SymPy.Sym,SymEngine.Basic}}
     vec = [e^c.arg * convert(T, r) * convert(T, f[1]) / convert(T, f[2]) * x for (e, r, f, x) in zip(c.evec, c.rvec, c.fvec, c.xvec)]
     simplify(sum(vec))
+end
+
+function convert(::Type{Expr}, c::CFiniteClosedForm)
+    rhs = convert(Expr, convert(Basic, c))
+    func = Symbol(string(c.func))
+    arg = Symbol(string(c.instance))
+    :($func($arg) = $rhs)
 end
 
 # function expression(cf::HyperClosedForm)

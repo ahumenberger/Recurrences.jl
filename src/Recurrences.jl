@@ -31,9 +31,11 @@ end
 replace_post(ex, s, s′) = MacroTools.postwalk(x -> x == s ? s′ : x, ex)
 gensym_unhashed(s::Symbol) = Symbol(replace(string(gensym(s)), "#"=>""))
 
+const RExpr = Union{Expr,Symbol,Number}
+
 function split_assign(xs::Vector{Expr})
     ls = Symbol[]
-    rs = Expr[]
+    rs = RExpr[]
     for x in xs
         @capture(x, l_ = r_)
         push!(ls, unblock(l))
@@ -42,7 +44,7 @@ function split_assign(xs::Vector{Expr})
     ls, rs
 end
 
-function pushexpr!(lrs::LinearRecSystem, ls::Vector{Expr}, rs::Vector{Expr})
+function pushexpr!(lrs::LinearRecSystem, ls::Vector{Expr}, rs::Vector{RExpr})
     for (l, r) in zip(ls, rs)
         expr = :($l - $r)
         entry, _ = LinearRecEntry(Basic, expr)
@@ -56,7 +58,7 @@ function pushexpr!(lrs::LinearRecSystem, ex::Expr...)
         if @capture(x, l_ = r_)
             x = :($l - $r)
         end
-        entry, _ = Recurrences.LinearRecEntry(Basic, x)
+        entry, _ = LinearRecEntry(Basic, x)
         push!(lrs, entry)
     end
     lrs
@@ -66,7 +68,7 @@ function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
     lhss, rhss = split_assign(exprs)
     lrs = LinearRecSystem(Basic(lc), map(Basic, lhss))
     for (i,v) in enumerate(lhss)
-        rhss = [replace_post(x, v, (i < j ? :($v($lc+1)) : :($v($lc)))) for (j,x) in enumerate(rhss)]
+        rhss = RExpr[replace_post(x, v, (i < j ? :($v($lc+1)) : :($v($lc)))) for (j,x) in enumerate(rhss)]
     end
     lhss = [Expr(:call, v, Expr(:call, :+, lc, 1)) for v in lhss]
     pushexpr!(lrs, lhss, rhss)
