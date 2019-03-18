@@ -8,7 +8,7 @@ struct LinearRecSystem{T}
     inhom::Vector{T}
 end
 
-LinearRecSystem(arg::T) where {T} = LinearRecSystem{T}([], arg, [], [])
+LinearRecSystem(arg::T, funcs::Vector{T}=T[]) where {T} = LinearRecSystem{T}(funcs, arg, [], [])
 LinearRecSystem(funcs::Vector{T}, arg::T, mat::Vector{Matrix{T}}) where {T} = LinearRecSystem{T}(funcs, arg, mat, zeros(T, size(mat[1], 1)))
 
 order(lrs::LinearRecSystem) = length(lrs.mat) - 1
@@ -266,8 +266,16 @@ function funcstr(funcs::Vector{String}, arg::String)
     join(a, "\n") 
 end
 
+Base.summary(io::IO, lrs::LinearRecSystem) = println(io, "$(nrows(lrs))-element $(typeof(lrs)) of order $(order(lrs)):")
+
 function Base.show(io::IO, lrs::LinearRecSystem)
+    summary(io, lrs)
+
     h = nrows(lrs)
+    if h == 0
+        return
+    end
+
     lp = lpar(h)
     rp = rpar(h, " ")
     pl = symstr(h, "+")
@@ -284,7 +292,6 @@ function Base.show(io::IO, lrs::LinearRecSystem)
     end
     push!(arr, rp, eq, lp, inhom, rp)
 
-    println(io, "$(typeof(lrs)) of order $(order(lrs)):")
     if h == 1
         print(io, join(arr))
     else
