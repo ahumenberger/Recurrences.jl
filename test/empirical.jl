@@ -8,17 +8,9 @@ function free_symbols(ex::Expr)
     Base.unique(ls)
 end
 
-getval(x::Module, s::Symbol) = getfield(x, s)
-getval(x::Dict, s::Symbol) = x[s]
-
-function loop(xs::Vector{Expr}, f::Function; iterations::Int = 10, initscope = nothing)
-    vs = Base.unique(Iterators.flatten(map(free_symbols, xs)))
-    ls = [:(Symbol($(string(v))) => $v) for v in vs]
-    if initscope == nothing
-        is = [:($v = $(Rational(rand(-10:10)))) for v in vs]
-    else
-        is = [:($v = $(getval(initscope, v))) for v in vs]
-    end
+function loop(xs::Vector{Expr}, f::Function; init::Dict, iterations::Int = 10)
+    ls = [:(Symbol($(string(v))) => $v) for v in keys(init)]
+    is = [:($k = $v) for (k, v) in init]
     quote
         let $(is...)
             $f(:it=>0, $(ls...))
@@ -30,16 +22,12 @@ function loop(xs::Vector{Expr}, f::Function; iterations::Int = 10, initscope = n
     end
 end
 
-function loop(cs::Vector{<:ClosedForm}, f::Function; iterations::Int = 10, initscope = nothing)
+function loop(cs::Vector{<:ClosedForm}, f::Function; init::Dict, iterations::Int = 10)
     xs = [convert(Expr, c) for c in cs]
+    xs = [MacroTools.postwalk(x->(x isa Number ? Rational(x) : x), y) for y in xs]
     vs = [Symbol(string(c.func)) for c in cs]
-    ls = [:(Symbol($(string(v))) => $v(it)) for v in vs]
-    # ls0 = [:(Symbol($(string(v))) => $(initvariable(v, 0))) for v in vs]
-    if initscope == nothing
-        is = [:($(initvariable(v, 0)) = $(Rational(rand(-10:10)))) for v in vs]
-    else
-        is = [:($(initvariable(v, 0)) = $(getval(initscope, v))) for v in vs]
-    end
+    is = [k in vs ? :($(initvariable(k, 0)) = $v) : :($k = $v) for (k, v) in init]
+    ls = [v in vs ? :(Symbol($(string(v))) => $v(it)) : :(Symbol($(string(v))) => $v) for v in keys(init)]
     quote
         let $(is...)
             $(xs...)
@@ -50,31 +38,25 @@ function loop(cs::Vector{<:ClosedForm}, f::Function; iterations::Int = 10, inits
     end
 end
 
-function looptrace(xs; kwargs...)
+function collecttrace(xs; init, kwargs...)
     df = DataFrame()
-    if xs isa Vector{Expr}
-        vs = Base.unique(Iterators.flatten(map(free_symbols, xs)))
-    else
-        vs = [Symbol(string(x.func)) for x in xs]
-    end
     df[:it] = Int[]
-    for v in vs
+    for v in keys(init)
         df[v] = Rational[]
     end
-    eval(loop(xs, (x...)->push!(df, Dict(x)); kwargs...))
+    eval(loop(xs, (x...)->push!(df, Dict(x)); init=init, kwargs...))
     df
 end
 
 function cftrace(xs::Vector{Expr}; kwargs...)
     cs = lrs_sequential(xs) |> solve
-    looptrace(cs; kwargs...)
+    collecttrace(cs; kwargs...)
 end
 
 function trace(xs::Vector{Expr}; kwargs...)
     vs = Base.unique(Iterators.flatten(map(free_symbols, xs)))
     dict = Dict(v=>Rational(rand(-10:10)) for v in vs)
-    @info "" dict
-    ldf = looptrace(xs; kwargs..., initscope=dict)
-    cdf = cftrace(xs; kwargs..., initscope=dict)
+    ldf = collecttrace(xs; kwargs..., init=dict)
+    cdf = cftrace(xs; kwargs..., init=dict)
     ldf, cdf
 end
