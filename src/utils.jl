@@ -37,3 +37,9 @@ function pascal(n; alt = false)
     end
     entries
 end
+
+function free_symbols(ex::Expr)
+    ls = Symbol[]
+    MacroTools.postwalk(x -> x isa Symbol && Base.isidentifier(x) ? push!(ls, x) : x, ex)
+    Base.unique(ls)
+end

@@ -2,12 +2,6 @@ using DataFrames
 using MacroTools
 using Recurrences
 
-function free_symbols(ex::Expr)
-    ls = Symbol[]
-    MacroTools.postwalk(x -> x isa Symbol && Base.isidentifier(x) ? push!(ls, x) : x, ex)
-    Base.unique(ls)
-end
-
 function loop(xs::Vector{Expr}, f::Function; init::Dict, iterations::Int = 10)
     ls = [:(Symbol($(string(v))) => $v) for v in keys(init)]
     is = [:($k = $v) for (k, v) in init]
@@ -54,7 +48,7 @@ function cftrace(xs::Vector{Expr}; kwargs...)
 end
 
 function trace(xs::Vector{Expr}; kwargs...)
-    vs = Base.unique(Iterators.flatten(map(free_symbols, xs)))
+    vs = Base.unique(Iterators.flatten(map(Recurrences.free_symbols, xs)))
     dict = Dict(v=>Rational(rand(-10:10)) for v in vs)
     ldf = collecttrace(xs; kwargs..., init=dict)
     cdf = cftrace(xs; kwargs..., init=dict)
