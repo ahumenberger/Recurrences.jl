@@ -52,7 +52,7 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     @debug "Roots of characteristic polynomial" collect(zip(rvec, mvec))
 
     A = [i^m * r^i for i in 0:size-1, (r, m) in zip(rvec, mvec)]
-    b = [initvariable(rec.func, i) for i in 0:size - 1] 
+    b = [initvar(rec.func, i) for i in 0:size - 1] 
     # @info "Ansatz" A b A\b
     CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
 end
@@ -72,7 +72,7 @@ function closedform(rec::HyperRecurrence{T}) where {T}
 
     size = order(rec)
     A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
-    b = [initvariable(rec.func, i) for i in 0:size - 1] 
+    b = [initvar(rec.func, i) for i in 0:size - 1] 
     @info "" A b
     HyperClosedForm(rec.func, rec.arg, evec, rvec, fvec, A \ b, b)
 end

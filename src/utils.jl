@@ -43,3 +43,5 @@ function free_symbols(ex::Expr)
     MacroTools.postwalk(x -> x isa Symbol && Base.isidentifier(x) ? push!(ls, x) : x, ex)
     Base.unique(ls)
 end
+
+initvar(v::T, i::Union{T, Int64}=0) where {T} = T("$(string(v))$(i)$(i)")

@@ -20,7 +20,7 @@ function loop(cs::Vector{<:ClosedForm}, f::Function; init::Dict, iterations::Int
     xs = [convert(Expr, c) for c in cs]
     xs = [MacroTools.postwalk(x->(x isa Number ? Rational(x) : x), y) for y in xs]
     vs = [Symbol(string(c.func)) for c in cs]
-    is = [k in vs ? :($(initvariable(k, 0)) = $v) : :($k = $v) for (k, v) in init]
+    is = [k in vs ? :($(initvar(k, 0)) = $v) : :($k = $v) for (k, v) in init]
     ls = [v in vs ? :(Symbol($(string(v))) => $v(it)) : :(Symbol($(string(v))) => $v) for v in keys(init)]
     quote
         let $(is...)

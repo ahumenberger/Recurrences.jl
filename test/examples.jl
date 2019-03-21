@@ -1,4 +1,4 @@
-iv(x) = Recurrences.initvariable(x, 0)
+const iv = initvar
 
 cf = Dict()
 

@@ -1,5 +1,5 @@
 export LinearRecSystem
-export decouple, homogenize!, solve, initvariable
+export decouple, homogenize!, solve, initvar
 
 struct LinearRecSystem{T}
     funcs::Vector{T}
@@ -202,7 +202,7 @@ function solve(lrs::LinearRecSystem{T}) where {T}
         M, A = decouple(lrs)
         blocks = blockdiagonal(M)
 
-        initvec = [initvariable(f, 0) for f in lrs.funcs]
+        initvec = [initvar(f, 0) for f in lrs.funcs]
         if lrs.funcs != oldlrs.funcs
             # Assume lrs got homogenized, therefore initial value of introduced variable is 1
             initvec[end] = T(1)
@@ -233,8 +233,6 @@ function solve(lrs::LinearRecSystem{T}) where {T}
     end
     cforms
 end
-
-initvariable(v::T, i::Union{T, Int64}) where {T} = T("$(string(v))$(i)$(i)")
 
 var_count = 0
 
