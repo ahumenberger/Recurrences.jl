@@ -5,7 +5,7 @@ export lrs, lrs_sequential, lrs_parallel
 export Recurrence, LinearRecurrence, CFiniteRecurrence, HyperRecurrence
 export ClosedForm, CFiniteClosedForm, HyperClosedForm
 export closedform, expression
-export LinearRecSystem, decouple, homogenize!, solve, 
+export LinearRecSystem, decouple, homogenize!, solve
 export initvar
 
 using SymPy
