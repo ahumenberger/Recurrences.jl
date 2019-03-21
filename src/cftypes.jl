@@ -76,8 +76,15 @@ end
 
 # ------------------------------------------------------------------------------
 
-function expression(cf::CFiniteClosedForm)
-    vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
+exponentials(c::CFiniteClosedForm) = c.rvec
+
+function expression(cf::CFiniteClosedForm; expvars = nothing)
+    if expvars == nothing
+        vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
+    else
+        @assert length(expvars) == length(cf.rvec) "Number of variables must be equal to number of exponentials"
+        vec = [cf.instance^m * r for (r, m) in zip(expvars, cf.mvec)]
+    end
     simplify(transpose(vec) * cf.xvec)
 end
 
