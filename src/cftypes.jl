@@ -1,6 +1,3 @@
-export ClosedForm, CFiniteClosedForm, HyperClosedForm
-export closedform, expression
-
 import Base: zero
 
 abstract type ClosedForm end

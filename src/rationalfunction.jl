@@ -1,6 +1,3 @@
-export RationalFunction
-# import Base: //
-
 struct RationalFunction{T}
     num::Poly{T}
     den::Poly{T}

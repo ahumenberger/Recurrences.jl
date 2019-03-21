@@ -1,5 +1,3 @@
-export Recurrence, LinearRecurrence, CFiniteRecurrence, HyperRecurrence
-
 abstract type Recurrence end
 abstract type LinearRecurrence <: Recurrence end
 

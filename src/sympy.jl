@@ -1,5 +1,3 @@
-export @rec, @lrs
-
 macro lrs(input)
     T = Basic
     entries = LinearEntry{T}[]

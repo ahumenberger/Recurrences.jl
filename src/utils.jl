@@ -1,4 +1,3 @@
-
 function variables(::Type{T}; n::Int = 1, unique::Bool = true) where {T}
     if unique
         global var_count += n

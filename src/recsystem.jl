@@ -1,6 +1,3 @@
-export LinearRecSystem
-export decouple, homogenize!, solve, initvar
-
 struct LinearRecSystem{T}
     funcs::Vector{T}
     arg::T
