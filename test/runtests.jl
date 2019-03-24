@@ -7,9 +7,7 @@ include("empirical.jl")
 for x in keys(cf)
     @info "$(string(x))"
     a, b = trace(eval(x))
-    @info "" a b
     @test a == b
-    # @test ==(trace(eval(x))...)
 end
 
 # for x in keys(cf)
