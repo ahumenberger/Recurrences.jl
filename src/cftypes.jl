@@ -98,12 +98,22 @@ function convert(::Type{T}, c::HyperClosedForm{T}) where {T <: Union{SymPy.Sym,S
     simplify(sum(vec))
 end
 
-function convert(::Type{Expr}, c::CFiniteClosedForm)
+function convert(::Type{Expr}, c::ClosedForm)
     rhs = convert(Expr, convert(Basic, c))
     func = Symbol(string(c.func))
     arg = Symbol(string(c.instance))
     :($func($arg) = $rhs)
 end
+
+rhs(::Type{Expr}, c::ClosedForm) = convert(Expr, convert(Basic, c))
+
+function lhs(::Type{Expr}, c::ClosedForm)
+    func = Symbol(string(c.func))
+    arg = Symbol(string(c.instance))
+    :($func($arg))
+end
+
+asfunction(::Type{Expr}, c::ClosedForm) = :($(lhs(Expr, c)) = rhs(Expr, c))
 
 # function expression(cf::HyperClosedForm)
 #     vec = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
@@ -128,13 +138,24 @@ function Base.:+(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T}
     initvec = [cf1.initvec; cf2.initvec]
     CFiniteClosedForm(cf1.func, cf1.arg, mvec, rvec, xvec, initvec)
 end
-Base.:-(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T} = cf1 + (-1) * cf2
+Base.:-(cf1::ClosedForm, cf2::ClosedForm) where {T} = cf1 + (-1) * cf2
 
 function Base.:*(c::HyperClosedForm{T}, coeff::Number) where {T}
     xvec = coeff .* c.xvec
     HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, xvec, c.initvec, c.instance)
 end
 Base.:*(coeff::Number, c::HyperClosedForm{T}) where {T} = c * coeff
+
+function Base.:+(cf1::HyperClosedForm{T}, cf2::HyperClosedForm{T}) where {T}
+    @assert cf1.arg == cf2.arg "Argument mismatch, got $(cf1.arg) and $(cf2.arg)"
+    cf1, cf2 = reset(cf1), reset(cf2)
+    evec = [cf1.evec; cf2.evec]
+    rvec = [cf1.rvec; cf2.rvec]
+    fvec = [cf1.fvec; cf2.fvec]
+    xvec = [cf1.xvec; cf2.xvec]
+    initvec = [cf1.initvec; cf2.initvec]
+    HyperClosedForm(cf1.func, cf1.arg, evec, rvec, fvec, xvec, initvec)
+end
 
 # ------------------------------------------------------------------------------
 
@@ -162,7 +183,7 @@ function reset(c::CFiniteClosedForm{T}) where {T}
 end
 
 function reset(c::HyperClosedForm{T}) where {T}
-    if has(c.instance, c.arg)
+    if c.arg in free_symbols(c.instance)
         shift = c.instance - c.arg
         factors = [e^shift for e in c.evec]
         xvec = c.xvec .* factors
@@ -171,7 +192,7 @@ function reset(c::HyperClosedForm{T}) where {T}
         xvec = c.xvec .* (c.evec .^ c.instance)
         evec = fill(T(1), length(c.rvec))
     end
-    CFiniteClosedForm(c.func, c.arg, c.mvec, rvec, xvec, c.initvec)
+    HyperClosedForm(c.func, c.arg, evec, c.rvec, c.fvec, xvec, c.initvec)
 end
 
 # ------------------------------------------------------------------------------
@@ -182,7 +203,7 @@ init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rve
 
 # ------------------------------------------------------------------------------
 
-Base.show(io::IO, cf::Union{CFiniteClosedForm, HyperClosedForm}) = print(io, " $(cf.func)($(cf.instance)) = $(convert(SymPy.Sym, cf))")
+Base.show(io::IO, cf::Union{CFiniteClosedForm, HyperClosedForm}) = print(io, " $(cf.func)($(cf.instance)) = $(convert(Basic, cf))")
 
 function Base.show(io::IO, ::MIME"text/plain", cf::Union{CFiniteClosedForm, HyperClosedForm})
     summary(io, cf)

@@ -26,8 +26,14 @@ end
 convert(::Type{Poly{SymPy.Sym}}, p::Poly{SymEngine.Basic}) = Poly(convert.(SymPy.Sym, coeffs(p)), p.var)
 convert(::Type{Poly{SymEngine.Basic}}, p::Poly{SymPy.Sym}) = Poly(convert.(SymEngine.Basic, coeffs(p)), p.var)
 
-convert(::Type{SymPy.Sym}, x::SymEngine.Basic) = SymPy.Sym(string(x))
-convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = convert(Expr, x) |> SymEngine.Basic
+convert(::Type{SymPy.Sym}, x::SymEngine.Basic) = begin 
+    # @info "" x SymPy.Sym(string(x))
+    SymPy.Sym(string(x))
+end
+convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = begin
+    # @info "asdf" x  convert(Expr, x)
+    convert(Expr, x) |> SymEngine.Basic
+end
 
 convert(::Type{Poly}, p::SymPy.Sym) = Poly(SymPy.coeffs(p))
 

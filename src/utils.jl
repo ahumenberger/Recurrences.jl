@@ -43,4 +43,10 @@ function free_symbols(ex::Expr)
     Base.unique(ls)
 end
 
+function function_symbols(ex::Expr)
+    ls = Expr[]
+    MacroTools.postwalk(x -> @capture(x, f_(a_)) ? push!(ls, x) : x, ex)
+    Base.unique(ls)
+end
+
 initvar(v::T, i::Union{T, Int64}=0) where {T} = T("$(string(v))$(i)$(i)")

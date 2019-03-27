@@ -18,6 +18,8 @@ const LinearEntry{T} = NamedTuple{(:coeffs, :inhom), Tuple{Vector{Dict{T,T}}, T}
 
 findelem(A, e) = findfirst(x -> x == e, A)
 
+Base.isempty(lrs::LinearRecSystem) = nrows(lrs) == 0
+
 function Base.push!(lrs::LinearRecSystem{T}, entries::LinearEntry{T}...) where {T}
     for entry in entries
         # get all function symbols not occurring in lrs
@@ -143,12 +145,12 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     σinv = x -> subs(x, lrs.arg => lrs.arg+1)
     δ = x -> σ(x) - x
     M = σ.(-lrs.mat[1]) - UniformScaling(1)
-    C, A = rational_form(copy(M), σ, σinv, δ)
+    C, A = rational_form(expand.(copy(M)), σ, σinv, δ)
     C = simplify.(C)
     A = simplify.(A)
 
     @debug "Zürcher" input=-lrs.mat[1] C A M simplify.(inv(A) * M * A)
-    @assert simplify.(inv(A) * M * A) == C "Zürcher wrong"
+    # @assert simplify.(inv(A) * M * A) == C "Zürcher wrong"
 
     σinv.(C), A
 end
@@ -184,7 +186,7 @@ function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
 end
 
 function solve(lrs::LinearRecSystem{T}) where {T}
-    cforms = CFiniteClosedForm[]
+    cforms = ClosedForm[]
     if isdecoupled(lrs) && ishomogeneous(lrs)
         for i in 1:nrows(lrs)
             coeffs = [m[i,i] for m in lrs.mat]

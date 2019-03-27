@@ -28,9 +28,9 @@ function algpoly(polylist::Vector{Poly{T}}, f::Poly{T}, n) where {T}
     @debug "" alpha typeof(alpha)
     deg = mroots(alpha)
     deg = isa(deg, Dict) ? keys(deg) : deg
-    third = maximum(deg)
+    third = convert(Int64, maximum(deg))
     @debug "" qlist b deg first second third
-    d = convert(Int64, max(first, second, third, 0))
+    d = max(first, second, third, 0)
 
     # Use method of undetermined coefficients to find the output polynomial.
     varlist = variables(T, n=d+1)
@@ -183,6 +183,8 @@ function commonfactors(p::Poly{T}, q::Poly{T}) where {T}
     rfunc, ffact = commonfactors(s, t)
     rfunc * rf, ffact
 end
+
+Base.isinteger(x::Basic) = isinteger(convert(Float64, x))
 
 function hgterms(s::RationalFunction)
     c, num, den = monic(s)

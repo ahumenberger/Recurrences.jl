@@ -69,6 +69,9 @@ Base.convert(::Type{RationalFunction{T}}, x::RationalFunction{S}) where {T,S} = 
 Base.convert(::Type{RationalFunction{T}}, x::Poly{T}) where {T} = RationalFunction(x)
 Base.convert(::Type{RationalFunction{T}}, x::Number) where {T} = RationalFunction(T(x), T(1))
 
+Base.convert(::Type{T}, r::RationalFunction{T}) where {T} = convert(T, numerator(r)) / convert(T, denominator(r))
+Base.convert(::Type{T}, p::Poly{T}) where {T} = sum(c * Basic(p.var)^(i-1) for (i, c) in enumerate(coeffs(p)))
+
 function monic(x::RationalFunction)
     n, d = numerator(x), denominator(x)
     lcn, lcd = lc(n), lc(d)
