@@ -11,52 +11,87 @@ struct PSolvClosedForm{T} <: ClosedForm
     instance::T # instantiate closed form, yields a closed form where `arg` is replaced by `instance`
 end
 
+CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
+
+function CFiniteClosedForm(func::T, arg::T, roots::Vector{T}, mult::Vector{T}, coeffs::Vector{T}) where {T}
+    
+end
+
+func(c::PSolvClosedForm) = c.func
+arg(c::PSolvClosedForm) = c.arg
 exponentials(c::PSolvClosedForm) = c.evec
 coeffs(c::PSolvClosedForm) = c.xvec
 rationalfunctions(c::PSolvClosedForm) = c.rvec
 factorials(c::PSolvClosedForm) = c.fvec
 
-Base.zero(c::PSolvClosedForm) = PSolvClosedForm(c.func, c.arg, [], [], [], [], c.arg)
+Base.zero(c::PSolvClosedForm) = PSolvClosedForm(func(c), arg(c), [], [], [], [], arg(c))
 Base.iszero(c::PSolvClosedForm) = isempty(exponentials(c)) && isempty(coeffs(c)) && isempty(rationalfunctions(c)) && isempty(factorials(c))
 
 # ------------------------------------------------------------------------------
 
-import Base: zero
-
-
-struct CFiniteClosedForm{T} <: ClosedForm
-    func::T
-    arg::T
-    mvec::Vector{T}
-    rvec::Vector{T}
-    xvec::Vector{T}
-    initvec::Vector{T}
-    instance::T # instantiate closed form, yields a closed form where `arg` is replaced by `instance`
+function Base.:*(c::PSolvClosedForm, x::Number)
+    xvec = c.xvec * x
+    PSolvClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, xvec, c.instance)
 end
+Base.:*(x::Number, c::ClosedForm) = c * x
 
-CFiniteClosedForm(func::T, arg::T, mvec::Vector{T}, rvec::Vector{T}, xvec::Vector{T}, initvec::Vector{T}) where {T} = CFiniteClosedForm(func, arg, mvec, rvec, xvec, initvec, arg)
-
-struct HyperClosedForm{T} <: ClosedForm
-    func::T
-    arg::T
-    evec::Vector{T} # bases of exponentials
-    rvec::Vector{RationalFunction{T}} # rational functions
-    fvec::Vector{Pair{FallingFactorial{T},FallingFactorial{T}}} # falling factorials
-    xvec::Vector{T} # coeffs
-    initvec::Vector{T}
-    instance::T # instantiate closed form, yields a closed form where `arg` is replaced by `instance`
+function Base.:+(c1::PSolvClosedForm{T}, c2::PSolvClosedForm{T}) where {T}
+    @assert arg(c1) == arg(c2) "Argument mismatch, got $(arg(c1)) and $(arg(c1))"
+    c1, c2 = reset(c1), reset(c2)
+    evec = [c1.evec; c2.evec]
+    rvec = [c1.rvec; c2.rvec]
+    fvec = [c1.fvec; c2.fvec]
+    xvec = [c1.xvec; c2.xvec]
+    PSolvClosedForm(func(c1), arg(c1), evec, rvec, fvec, xvec, arg(c1))
 end
-
-HyperClosedForm(func::T, arg::T, evec::Vector{T}, rvec::Vector{RationalFunction{T}}, fvec::Vector{Pair{FallingFactorial{T},FallingFactorial{T}}}, xvec::Vector{T}, initvec::Vector{T}) where {T} = HyperClosedForm(func, arg, evec, rvec, fvec, xvec, initvec, arg)
+Base.:-(c1::ClosedForm, c2::ClosedForm) where {T} = c1 + (-1) * c2
 
 # ------------------------------------------------------------------------------
 
-ClosedForm(func::T, cf::CFiniteClosedForm{T}) where {T} = CFiniteClosedForm(func, cf.arg, cf.mvec, cf.rvec, cf.xvec, cf.initvec, cf.instance)
-ClosedForm(func::T, cf::HyperClosedForm{T}) where {T} = HyperClosedForm(func, cf.arg, cf.evec, cf.rvec, cf.fvec, cf.xvec, cf.initvec, cf.instance)
+function (c::PSolvClosedForm{T})(n::Union{Int, T}) where {T}
+    PSolvClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, c.arg, n) for x in c.xvec], subs(c.instance, c.arg, n))
+end
 
-zero(c::CFiniteClosedForm{T}) where {T} = c * 0
-zero(c::HyperClosedForm{T}) where {T} = c * 0
+function reset(c::PSolvClosedForm{T}) where {T}
+    if c.arg in free_symbols(c.instance)
+        shift = c.instance - c.arg
+        factors = [e^shift for e in c.evec]
+        xvec = c.xvec .* factors
+        evec = c.evec
+    else
+        xvec = c.xvec .* (c.evec .^ c.instance)
+        evec = fill(one(T), length(c.rvec))
+    end
+    PSolvClosedForm(c.func, c.arg, evec, c.rvec, c.fvec, xvec, c.arg)
+end
 
+# ------------------------------------------------------------------------------
+
+function rhs(::Type{T}, c::PSolvClosedForm{T}; expvars = nothing, factvars = nothing) where {T}
+    n = c.instance
+    exps = expvars
+    if expvars == nothing
+        exps = exponentials(c) .^ n
+    end
+    facts = factvars
+    if factvars == nothing
+        facts = factorials(c)
+    end
+    terms = zip(exps, coeffs(c), rationalfunctions(c), facts)
+    sum(e * x * convert(T, r) * convert(T, f) for (e, x, r, f) in terms)
+end
+
+rhs(::Type{Expr}, c::PSolvClosedForm{T}) where {T} = convert(Expr, rhs(T, c))
+
+function lhs(::Type{Expr}, c::ClosedForm)
+    func = Symbol(string(c.func))
+    arg = Symbol(string(c.instance))
+    :($func($arg))
+end
+
+asfunction(c::ClosedForm) = :($(lhs(Expr, c)) = rhs(Expr, c))
+
+# ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 
 function closedform(rec::CFiniteRecurrence{T}) where {T}
@@ -98,137 +133,16 @@ end
 
 # ------------------------------------------------------------------------------
 
-exponentials(c::CFiniteClosedForm) = c.rvec
-
-function expression(cf::CFiniteClosedForm; expvars = nothing)
-    if expvars == nothing
-        vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
-    else
-        @assert length(expvars) == length(cf.rvec) "Number of variables must be equal to number of exponentials"
-        vec = [cf.instance^m * r for (r, m) in zip(expvars, cf.mvec)]
-    end
-    simplify(transpose(vec) * cf.xvec)
-end
-
-function convert(::Type{T}, c::CFiniteClosedForm) where {T <: Union{SymPy.Sym,SymEngine.Basic}}
-    vec = [c.instance^m * r^c.instance for (r, m) in zip(c.rvec, c.mvec)]
-    simplify(transpose(vec) * c.xvec)
-end
-
-function convert(::Type{T}, c::HyperClosedForm{T}) where {T <: Union{SymPy.Sym,SymEngine.Basic}}
-    vec = [e^c.arg * convert(T, r) * convert(T, f[1]) / convert(T, f[2]) * x for (e, r, f, x) in zip(c.evec, c.rvec, c.fvec, c.xvec)]
-    simplify(sum(vec))
-end
-
-function convert(::Type{Expr}, c::ClosedForm)
-    rhs = convert(Expr, convert(Basic, c))
-    func = Symbol(string(c.func))
-    arg = Symbol(string(c.instance))
-    :($func($arg) = $rhs)
-end
-
-rhs(::Type{Expr}, c::ClosedForm) = convert(Expr, convert(Basic, c))
-
-function lhs(::Type{Expr}, c::ClosedForm)
-    func = Symbol(string(c.func))
-    arg = Symbol(string(c.instance))
-    :($func($arg))
-end
-
-asfunction(::Type{Expr}, c::ClosedForm) = :($(lhs(Expr, c)) = rhs(Expr, c))
-
-# function expression(cf::HyperClosedForm)
-#     vec = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
-#     vec = [cf.instance^m * r^cf.instance for (r, m) in zip(cf.rvec, cf.mvec)]
-#     simplify(transpose(vec) * cf.xvec)
-# end
-
-# ------------------------------------------------------------------------------
-
-function Base.:*(cf::CFiniteClosedForm{T}, coeff::Number) where {T}
-    xvec = coeff .* cf.xvec
-    CFiniteClosedForm(cf.func, cf.arg, cf.mvec, cf.rvec, xvec, cf.initvec, cf.instance)
-end
-Base.:*(coeff::Number, cf::CFiniteClosedForm{T}) where {T} = cf * coeff
-
-function Base.:+(cf1::CFiniteClosedForm{T}, cf2::CFiniteClosedForm{T}) where {T}
-    @assert cf1.arg == cf2.arg "Argument mismatch, got $(cf1.arg) and $(cf2.arg)"
-    cf1, cf2 = reset(cf1), reset(cf2)
-    mvec = [cf1.mvec; cf2.mvec]
-    rvec = [cf1.rvec; cf2.rvec]
-    xvec = [cf1.xvec; cf2.xvec]
-    initvec = [cf1.initvec; cf2.initvec]
-    CFiniteClosedForm(cf1.func, cf1.arg, mvec, rvec, xvec, initvec)
-end
-Base.:-(cf1::ClosedForm, cf2::ClosedForm) where {T} = cf1 + (-1) * cf2
-
-function Base.:*(c::HyperClosedForm{T}, coeff::Number) where {T}
-    xvec = coeff .* c.xvec
-    HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, xvec, c.initvec, c.instance)
-end
-Base.:*(coeff::Number, c::HyperClosedForm{T}) where {T} = c * coeff
-
-function Base.:+(cf1::HyperClosedForm{T}, cf2::HyperClosedForm{T}) where {T}
-    @assert cf1.arg == cf2.arg "Argument mismatch, got $(cf1.arg) and $(cf2.arg)"
-    cf1, cf2 = reset(cf1), reset(cf2)
-    evec = [cf1.evec; cf2.evec]
-    rvec = [cf1.rvec; cf2.rvec]
-    fvec = [cf1.fvec; cf2.fvec]
-    xvec = [cf1.xvec; cf2.xvec]
-    initvec = [cf1.initvec; cf2.initvec]
-    HyperClosedForm(cf1.func, cf1.arg, evec, rvec, fvec, xvec, initvec)
-end
-
-# ------------------------------------------------------------------------------
-
-function (c::CFiniteClosedForm{T})(n::Union{Int, T}) where {T}
-    CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, c.arg, n) for x in c.xvec], c.initvec, subs(c.instance, c.arg, n))
-end
-
-function (c::HyperClosedForm{T})(n::Union{Int, T}) where {T}
-    HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, c.arg, n) for x in c.xvec], c.initvec, subs(c.instance, c.arg, n))
-end
-
-# ------------------------------------------------------------------------------
-
-function reset(c::CFiniteClosedForm{T}) where {T}
-    if c.arg in free_symbols(c.instance)
-        shift = c.instance - c.arg
-        factors = [c.instance^m / c.arg^m * r^shift for (r, m) in zip(c.rvec, c.mvec)]
-        xvec = c.xvec .* factors
-        rvec = c.rvec
-    else
-        xvec = c.xvec .* (c.rvec .^ c.instance)
-        rvec = fill(T(1), length(c.rvec))
-    end
-    CFiniteClosedForm(c.func, c.arg, c.mvec, rvec, xvec, c.initvec)
-end
-
-function reset(c::HyperClosedForm{T}) where {T}
-    if c.arg in free_symbols(c.instance)
-        shift = c.instance - c.arg
-        factors = [e^shift for e in c.evec]
-        xvec = c.xvec .* factors
-        evec = c.evec
-    else
-        xvec = c.xvec .* (c.evec .^ c.instance)
-        evec = fill(T(1), length(c.rvec))
-    end
-    HyperClosedForm(c.func, c.arg, evec, c.rvec, c.fvec, xvec, c.initvec)
-end
-
-# ------------------------------------------------------------------------------
-
 init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
 
 init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
 
 # ------------------------------------------------------------------------------
 
-Base.show(io::IO, cf::Union{CFiniteClosedForm, HyperClosedForm}) = print(io, " $(cf.func)($(cf.instance)) = $(convert(Basic, cf))")
+Base.show(io::IO, c::ClosedForm) = print(io, string(asfunction(c)))
 
-function Base.show(io::IO, ::MIME"text/plain", cf::Union{CFiniteClosedForm, HyperClosedForm})
-    summary(io, cf)
+function Base.show(io::IO, ::MIME"text/plain", c::ClosedForm)
+    summary(io, c)
     println(io, ":")
-    show(io, cf)
+    show(io, c)
 end
