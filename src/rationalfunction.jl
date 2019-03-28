@@ -82,6 +82,8 @@ shift(r::RationalFunction{T}, s::Union{Int64, T}) where {T} = RationalFunction(s
 
 (r::RationalFunction{T})(n::Union{Int, T}) where {T} = polyval(numerator(r), n) / polyval(denominator(r), n)
 
+Base.one(::Type{RationalFunction{T}}) where {T} = one(T) // one(T)
+
 # function convert(::Type{T}, r::RationalFunction{T}) where {T <: SymPy.Sym}
 #     convert(T, numerator(r)) / convert(T, denominator(r))
 # end

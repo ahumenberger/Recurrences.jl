@@ -163,7 +163,7 @@ function LinearRecEntry(::Type{T}, expr::SymPy.Sym) where {T<:Union{SymPy.Sym, S
 
     farg = fsyms[1]
     # remove functions which are not of the form x(n+1)
-    funcs = func.(filter(x -> has(x, farg), funcs)) |> Base.unique
+    funcs = SymPy.func.(filter(x -> has(x, farg), funcs)) |> Base.unique
     args = filter(x -> has(x, farg), args)
     @assert !(string(farg) in string.(funcs)) "Ambiguous symbol: $(farg) is a function and an argument"
 

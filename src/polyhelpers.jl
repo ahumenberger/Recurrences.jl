@@ -5,7 +5,7 @@ import SymPy.simplify
 
 struct FallingFactorial{T}
     p::Poly{T}
-    # exp::T
+    n::T
 end
 
 shift(f::FallingFactorial{T}, s::Union{Int64, T}) where {T} = FallingFactorial(shift(f.p, s))
@@ -14,6 +14,17 @@ shift(f::FallingFactorial{T}, s::Union{Int64, T}) where {T} = FallingFactorial(s
 function convert(::Type{T}, f::FallingFactorial{T}) where {T <: SymPy.Sym}
     SymPy.FallingFactorial(convert(T, f.p), SymPy.Sym(f.p.var))
 end
+
+const RationalFactorial{T} = Pair{FallingFactorial{T},FallingFactorial{T}}
+Base.numerator(f::RationalFactorial) = first(f)
+Base.denominator(f::RationalFactorial) = last(f)
+
+Base.one(::Type{RationalFactorial{T}}) where {T} = one(FallingFactorial{T}) => one(FallingFactorial{T})
+
+Base.one(::Type{FallingFactorial{T}}) where {T} = FallingFactorial(one(Poly{T}), one(T))
+
+convert(::Type{Basic}, f::FallingFactorial{Basic}) = Basic("gamma($(sprint(printpoly, f.p)) + 1) / gamma($(sprint(printpoly, f.p)) - $(f.n) + 1)")
+convert(::Type{T}, f::RationalFactorial{T}) where {T} = convert(T, numerator(f)) / convert(T, denominator(f))
 
 # ------------------------------------------------------------------------------
 

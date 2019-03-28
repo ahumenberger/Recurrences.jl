@@ -6,15 +6,18 @@ struct PSolvClosedForm{T} <: ClosedForm
     evec::Vector{T} # bases of exponentials
     xvec::Vector{T} # coeffs
     rvec::Vector{RationalFunction{T}} # rational functions
-    fvec::Vector{Pair{FallingFactorial{T},FallingFactorial{T}}} # falling factorials
+    fvec::Vector{RationalFactorial{T}} # falling factorials
     # initvec::Vector{T}
     instance::T # instantiate closed form, yields a closed form where `arg` is replaced by `instance`
 end
 
-CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
+# CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
 
-function CFiniteClosedForm(func::T, arg::T, roots::Vector{T}, mult::Vector{T}, coeffs::Vector{T}) where {T}
-    
+function CFiniteClosedForm(func::T, arg::T, roots::Vector{T}, coeffs::Vector{T}) where {T}
+    l = length(roots)
+    rs = ones(RationalFunction{T}, l)
+    fs = ones(RationalFactorial{T}, l)
+    PSolvClosedForm(func, arg, roots, coeffs, rs, fs, arg)
 end
 
 func(c::PSolvClosedForm) = c.func
@@ -89,7 +92,7 @@ function lhs(::Type{Expr}, c::ClosedForm)
     :($func($arg))
 end
 
-asfunction(c::ClosedForm) = :($(lhs(Expr, c)) = rhs(Expr, c))
+asfunction(c::ClosedForm) = :($(lhs(Expr, c)) = $(rhs(Expr, c)))
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
@@ -108,34 +111,36 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     A = [i^m * r^i for i in 0:size-1, (r, m) in zip(rvec, mvec)]
     b = [initvar(rec.func, i) for i in 0:size - 1] 
     # @info "Ansatz" A b A\b
-    CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
+    sol = A \ b
+    xvec = [x * rec.arg^m for (x, m) in zip(sol, mvec)]
+    CFiniteClosedForm(rec.func, rec.arg, rvec, xvec)
 end
 
-function closedform(rec::HyperRecurrence{T}) where {T}
-    hgterms = petkovsek(rec.coeffs, rec.arg)
+# function closedform(rec::HyperRecurrence{T}) where {T}
+#     hgterms = petkovsek(rec.coeffs, rec.arg)
     
-    evec = T[]
-    rvec = RationalFunction{T}[]
-    fvec = Pair{FallingFactorial{T},FallingFactorial{T}}[]
-    for (exp, rfunc, fact) in hgterms
-        @debug "" exp rfunc fact
-        push!(evec, exp)
-        push!(rvec, rfunc)
-        push!(fvec, fact)
-    end
+#     evec = T[]
+#     rvec = RationalFunction{T}[]
+#     fvec = Pair{FallingFactorial{T},FallingFactorial{T}}[]
+#     for (exp, rfunc, fact) in hgterms
+#         @debug "" exp rfunc fact
+#         push!(evec, exp)
+#         push!(rvec, rfunc)
+#         push!(fvec, fact)
+#     end
 
-    size = order(rec)
-    A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
-    b = [initvar(rec.func, i) for i in 0:size - 1] 
-    @info "" A b
-    HyperClosedForm(rec.func, rec.arg, evec, rvec, fvec, A \ b, b)
-end
+#     size = order(rec)
+#     A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
+#     b = [initvar(rec.func, i) for i in 0:size - 1] 
+#     @info "" A b
+#     HyperClosedForm(rec.func, rec.arg, evec, rvec, fvec, A \ b, b)
+# end
 
 # ------------------------------------------------------------------------------
 
-init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
+# init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
 
-init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
+# init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
 
 # ------------------------------------------------------------------------------
 

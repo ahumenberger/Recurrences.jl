@@ -28,6 +28,7 @@ include("recsystem.jl")
 include("parse.jl")
 include("sympy.jl")
 include("utils.jl")
+include("cfs.jl")
 
 const AppliedUndef = PyCall.PyNULL()
 
