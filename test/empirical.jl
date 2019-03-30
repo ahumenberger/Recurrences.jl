@@ -17,7 +17,7 @@ function loop(xs::Vector{Expr}, f::Function; init::Dict, iterations::Int = 10)
 end
 
 function loop(cs::Vector{<:ClosedForm}, f::Function; init::Dict, iterations::Int = 10)
-    xs = [convert(Expr, c) for c in cs]
+    xs = [Recurrences.asfunction(c) for c in cs]
     xs = [MacroTools.postwalk(x->(x isa Number ? Rational(x) : x), y) for y in xs]
     vs = [Symbol(string(c.func)) for c in cs]
     is = [k in vs ? :($(initvar(k, 0)) = $v) : :($k = $v) for (k, v) in init]
