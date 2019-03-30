@@ -7,18 +7,18 @@ struct PSolvClosedForm{T} <: ClosedForm
     xvec::Vector{T} # coeffs
     rvec::Vector{RationalFunction{T}} # rational functions
     fvec::Vector{RationalFactorial{T}} # falling factorials
-    # initvec::Vector{T}
+    ivec::Vector{T}
     instance::T # instantiate closed form, yields a closed form where `arg` is replaced by `instance`
 end
 
-# CFiniteClosedForm(rec.func, rec.arg, mvec, rvec, A \ b, b)
-
-function CFiniteClosedForm(func::T, arg::T, roots::Vector{T}, coeffs::Vector{T}) where {T}
+function CFiniteClosedForm(func::T, arg::T, roots::Vector{T}, coeffs::Vector{T}, ivars::Vector{T}) where {T}
     l = length(roots)
     rs = ones(RationalFunction{T}, l)
     fs = ones(RationalFactorial{T}, l)
-    PSolvClosedForm(func, arg, roots, coeffs, rs, fs, arg)
+    PSolvClosedForm(func, arg, roots, coeffs, rs, fs, ivars, arg)
 end
+
+ClosedForm(func::T, c::PSolvClosedForm{T}) where {T} = PSolvClosedForm(func, c.arg, c.evec, c.xvec, c.rvec, c.fvec, c.ivec, c.instance)
 
 func(c::PSolvClosedForm) = c.func
 arg(c::PSolvClosedForm) = c.arg
@@ -26,15 +26,16 @@ exponentials(c::PSolvClosedForm) = c.evec
 coeffs(c::PSolvClosedForm) = c.xvec
 rationalfunctions(c::PSolvClosedForm) = c.rvec
 factorials(c::PSolvClosedForm) = c.fvec
+initvars(c::PSolvClosedForm) = c.ivec
 
-Base.zero(c::PSolvClosedForm) = PSolvClosedForm(func(c), arg(c), [], [], [], [], arg(c))
+Base.zero(c::PSolvClosedForm{T}) where {T} = PSolvClosedForm(func(c), arg(c), T[], T[], RationalFunction{T}[], RationalFactorial{T}[], T[], arg(c))
 Base.iszero(c::PSolvClosedForm) = isempty(exponentials(c)) && isempty(coeffs(c)) && isempty(rationalfunctions(c)) && isempty(factorials(c))
 
 # ------------------------------------------------------------------------------
 
 function Base.:*(c::PSolvClosedForm, x::Number)
     xvec = c.xvec * x
-    PSolvClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, xvec, c.instance)
+    PSolvClosedForm(c.func, c.arg, c.evec, xvec, c.rvec, c.fvec, c.ivec, c.instance)
 end
 Base.:*(x::Number, c::ClosedForm) = c * x
 
@@ -45,14 +46,15 @@ function Base.:+(c1::PSolvClosedForm{T}, c2::PSolvClosedForm{T}) where {T}
     rvec = [c1.rvec; c2.rvec]
     fvec = [c1.fvec; c2.fvec]
     xvec = [c1.xvec; c2.xvec]
-    PSolvClosedForm(func(c1), arg(c1), evec, rvec, fvec, xvec, arg(c1))
+    ivec = Base.unique([c1.ivec; c2.ivec])
+    PSolvClosedForm(func(c1), arg(c1), evec, xvec, rvec, fvec, ivec, arg(c1))
 end
 Base.:-(c1::ClosedForm, c2::ClosedForm) where {T} = c1 + (-1) * c2
 
 # ------------------------------------------------------------------------------
 
 function (c::PSolvClosedForm{T})(n::Union{Int, T}) where {T}
-    PSolvClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, c.arg, n) for x in c.xvec], subs(c.instance, c.arg, n))
+    PSolvClosedForm(c.func, c.arg, c.evec, [subs(x, c.arg, n) for x in c.xvec], c.rvec, c.fvec, c.ivec, subs(c.instance, c.arg, n))
 end
 
 function reset(c::PSolvClosedForm{T}) where {T}
@@ -65,7 +67,7 @@ function reset(c::PSolvClosedForm{T}) where {T}
         xvec = c.xvec .* (c.evec .^ c.instance)
         evec = fill(one(T), length(c.rvec))
     end
-    PSolvClosedForm(c.func, c.arg, evec, c.rvec, c.fvec, xvec, c.arg)
+    PSolvClosedForm(c.func, c.arg, evec, xvec, c.rvec, c.fvec, c.ivec, c.arg)
 end
 
 # ------------------------------------------------------------------------------
@@ -81,7 +83,7 @@ function rhs(::Type{T}, c::PSolvClosedForm{T}; expvars = nothing, factvars = not
         facts = factorials(c)
     end
     terms = zip(exps, coeffs(c), rationalfunctions(c), facts)
-    sum(e * x * convert(T, r) * convert(T, f) for (e, x, r, f) in terms)
+    sum(e * x * convert(T, r) * convert(T, f) for (e, x, r, f) in terms) |> expand
 end
 
 rhs(::Type{Expr}, c::PSolvClosedForm{T}) where {T} = convert(Expr, rhs(T, c))
@@ -113,7 +115,7 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     # @info "Ansatz" A b A\b
     sol = A \ b
     xvec = [x * rec.arg^m for (x, m) in zip(sol, mvec)]
-    CFiniteClosedForm(rec.func, rec.arg, rvec, xvec)
+    CFiniteClosedForm(rec.func, rec.arg, rvec, xvec, b)
 end
 
 # function closedform(rec::HyperRecurrence{T}) where {T}
@@ -140,7 +142,7 @@ end
 
 # init(c::CFiniteClosedForm, d::Dict) = CFiniteClosedForm(c.func, c.arg, c.mvec, c.rvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
 
-# init(c::HyperClosedForm, d::Dict) = HyperClosedForm(c.func, c.arg, c.evec, c.rvec, c.fvec, [subs(x, d...) for x in c.xvec], c.initvec, c.instance)
+init(c::PSolvClosedForm, d::Dict) = PSolvClosedForm(c.func, c.arg, c.evec, [subs(x, d...) for x in c.xvec], c.rvec, c.fvec,  c.ivec, c.instance)
 
 # ------------------------------------------------------------------------------
 

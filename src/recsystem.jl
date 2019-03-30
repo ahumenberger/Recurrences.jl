@@ -173,9 +173,10 @@ function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
     @debug "Reference recurrence" rec
     cf = closedform(rec)
 
-    initsubs = Dict(zip(cf.initvec, initvec[1:length(cf.initvec)]))
-    @debug "Rules for substitution of initial values" initsubs
-    cf = init(cf, initsubs)
+    ivars = initvars(cf)
+    isubs = Dict(zip(ivars, initvec[1:length(ivars)]))
+    @debug "Rules for substitution of initial values" isubs
+    cf = init(cf, isubs)
 
     cforms = ClosedForm[cf]
     for i in 1:csize-1
