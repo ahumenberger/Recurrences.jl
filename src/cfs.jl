@@ -53,7 +53,7 @@ Base.:-(c1::ClosedForm, c2::ClosedForm) where {T} = c1 + (-1) * c2
 
 # ------------------------------------------------------------------------------
 
-function (c::PSolvClosedForm{T})(n::Union{Int, T}) where {T}
+function (c::PSolvClosedForm{T})(n::Union{Int,T}) where {T}
     PSolvClosedForm(c.func, c.arg, c.evec, [subs(x, c.arg, n) for x in c.xvec], c.rvec, c.fvec, c.ivec, subs(c.instance, c.arg, n))
 end
 
@@ -66,7 +66,7 @@ function reset(c::PSolvClosedForm{T}) where {T}
         xvec = c.xvec .* factors
         evec = c.evec
     else
-        xvec = c.xvec .* (c.evec .^ c.instance)
+        xvec = c.xvec .* (c.evec.^c.instance)
         evec = fill(one(T), length(c.rvec))
     end
     PSolvClosedForm(c.func, c.arg, evec, xvec, c.rvec, c.fvec, c.ivec, c.arg)
@@ -78,7 +78,7 @@ function rhs(::Type{T}, c::PSolvClosedForm{T}; expvars = nothing, factvars = not
     n = c.instance
     exps = expvars
     if expvars == nothing
-        exps = exponentials(c) .^ n
+        exps = exponentials(c).^n
     end
     facts = factvars
     if factvars == nothing
@@ -111,7 +111,7 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     rvec = [z for (z, m) in roots for _ in 0:m - 1] # roots
     @debug "Roots of characteristic polynomial" collect(zip(rvec, mvec))
 
-    A = [i^m * r^i for i in 0:size-1, (r, m) in zip(rvec, mvec)]
+    A = [i^m * r^i for i in 0:size - 1, (r, m) in zip(rvec, mvec)]
     b = [initvar(rec.func, i) for i in 0:size - 1] 
     # @info "Ansatz" A b A\b
     sol = A \ b
@@ -133,7 +133,7 @@ function closedform(rec::HyperRecurrence{T}) where {T}
     end
 
     size = order(rec)
-    A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size-1, (e, r, f) in zip(evec, rvec, fvec)]
+    A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size - 1, (e, r, f) in zip(evec, rvec, fvec)]
     b = [initvar(rec.func, i) for i in 0:size - 1] 
     @info "" A b
     HyperClosedForm(rec.func, rec.arg, evec, rvec, fvec, A \ b, b)
