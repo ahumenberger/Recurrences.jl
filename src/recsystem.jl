@@ -164,10 +164,10 @@ function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
     if any(arg in free_symbols(c) for c in coeffs)
         @error "Only C-finite recurrences supported by now"
         RecurrenceT = HyperRecurrence
-        ClosedFormT = HyperClosedForm
+        # ClosedFormT = HyperClosedForm
     else
         RecurrenceT = CFiniteRecurrence
-        ClosedFormT = CFiniteClosedForm
+        # ClosedFormT = CFiniteClosedForm
     end
     rec = RecurrenceT(variables(T), arg, coeffs)
     @debug "Reference recurrence" rec
