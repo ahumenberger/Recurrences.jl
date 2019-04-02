@@ -84,6 +84,9 @@ shift(r::RationalFunction{T}, s::Union{Int64, T}) where {T} = RationalFunction(s
 
 Base.one(::Type{RationalFunction{T}}) where {T} = one(T) // one(T)
 
+Base.hash(r::RationalFunction, h::UInt) = hash((r.num, r.den), h)
+Base.:(==)(r::RationalFunction, s::RationalFunction) = numerator(r) == numerator(s) && denominator(r) == denominator(s)
+
 # function convert(::Type{T}, r::RationalFunction{T}) where {T <: SymPy.Sym}
 #     convert(T, numerator(r)) / convert(T, denominator(r))
 # end

@@ -57,7 +57,7 @@ function algpoly(polylist::Vector{Poly{T}}, f::Poly{T}, n) where {T}
     filter!(e -> e != 0, coefficients)
     sol = solve(coefficients, varlist)
     missing = setdiff(varlist, keys(sol))
-    p = Poly([subs(c, sol) for c in coeffs(genpoly)], string(n))
+    p = Poly([subs(c, sol...) for c in coeffs(genpoly)], string(n))
     solutions = Poly{T}[]
     for v in missing
         c = coeff(p, v)
@@ -127,9 +127,9 @@ function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
             @debug "Roots" zpol vals
             for x in vals
                 polylist2 = [x^(i-1)*p for (i,p) in enumerate(plist)]
-                @debug "" typeof(polylist2)
+                @debug "Input to algpoly" polylist2
                 
-                polysols = algpoly(polylist2, Poly(T[0], string(n)), n)
+                polysols = algpoly(polylist2, Poly(zero(T), string(n)), n)
                 @debug "Solutions of algpoly" polysols
 
                 for c in polysols
@@ -199,9 +199,12 @@ function hgterms(s::RationalFunction)
         sh = isempty(pqroots) ? 0 : minimum(pqroots)
         sh = sh < 0 ? -sh : 0
         num, den = shift(num, sh), shift(den, sh)
-
+        @debug "" num den
         rfunc, ffact = commonfactors(num, den)
+        @debug "Common factors" rfunc ffact 
         rfunc, ffact = shift(rfunc, -sh), Pair(shift(ffact[1], -sh), shift(ffact[2], -sh))
+        @debug "Common factors" rfunc ffact 
+
 
         return c, rfunc, ffact
     end
@@ -220,7 +223,7 @@ function petkovsek(cf::Vector{T}, arg::T) where {T}
     cf = simplify.(cf)
     cf = coeffs.(cf, arg) # SymPy.Poly.(coeffs, arg)
     hyper = alghyper(Poly.(cf, string(arg)), arg)
-    @debug "Petkovsek - alghyper" hyper
+    @debug "Petkovsek - alghyper" Base.unique(hyper)
     hgterms.(hyper)
 end
 
