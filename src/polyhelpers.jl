@@ -162,3 +162,18 @@ simplify(x::SymEngine.Basic) = convert(SymEngine.Basic, SymPy.simplify(convert(S
 
     # companion[:eigenvals]()
 # end
+
+function linsolve(A::Matrix{Basic}, b::Vector{Basic})
+    nrows = size(A, 1)
+    ncols = size(A, 2)
+    for i in nrows+1:ncols
+        v = zeros(Basic, 1, ncols)
+        v[1, i] = 1
+        A = vcat(A, v)
+        b = [b; 0]
+    end
+    cA = convert(SymEngine.CDenseMatrix, A)
+    # @info "" A cA b
+    res = convert(Matrix{Basic}, cA \ b)
+    vec(res)
+end

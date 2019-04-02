@@ -86,8 +86,8 @@ function rhs(::Type{T}, c::PSolvClosedForm{T}; expvars = nothing, factvars = not
     end
     @info "" c.instance expand.(coeffs(c))
     terms = zip(exps, coeffs(c), rationalfunctions(c), facts)
-    sum(e for (e, x, r, f) in terms) |> expand
-    # sum(e * x * convert(T, r) * convert(T, f) for (e, x, r, f) in terms) |> expand
+    # sum(e for (e, x, r, f) in terms) |> expand
+    sum(e * x * convert(T, r) * convert(T, f) for (e, x, r, f) in terms) |> expand
 end
 
 rhs(::Type{Expr}, c::PSolvClosedForm{T}) where {T} = convert(Expr, rhs(T, c))
@@ -116,8 +116,8 @@ function closedform(rec::CFiniteRecurrence{T}) where {T}
     A = [i^m * r^i for i in 0:size - 1, (r, m) in zip(rvec, mvec)]
     b = [initvar(rec.func, i) for i in 0:size - 1] 
     # @info "Ansatz" A b A\b
-    @info "Ansatz" A b A\b
-    sol = A \ b
+    @info "Ansatz" A b linsolve(A, b)
+    sol = linsolve(A, b)
     xvec = [x * rec.arg^m for (x, m) in zip(sol, mvec)]
     CFiniteClosedForm(rec.func, rec.arg, rvec, xvec, b)
 end
@@ -138,8 +138,8 @@ function closedform(rec::HyperRecurrence{T}) where {T}
     size = order(rec)
     A = [e^i * r(i) * f[1](i) / f[2](i) for i in 0:size - 1, (e, r, f) in zip(evec, rvec, fvec)]
     b = [initvar(rec.func, i) for i in 0:size - 1] 
-    @info "" A b expand.(A\b)
-    PSolvClosedForm(rec.func, rec.arg, evec, A \ b, rvec, fvec, b, rec.arg)
+    @info "" A b linsolve(A, b) hgterms
+    PSolvClosedForm(rec.func, rec.arg, evec, linsolve(A, b), rvec, fvec, b, rec.arg)
 end
 
 # ------------------------------------------------------------------------------
