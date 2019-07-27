@@ -40,7 +40,7 @@ convert(::Type{Poly{SymPy.Sym}}, p::Poly{SymEngine.Basic}) = Poly(convert.(SymPy
 convert(::Type{Poly{SymEngine.Basic}}, p::Poly{SymPy.Sym}) = Poly(convert.(SymEngine.Basic, coeffs(p)), p.var)
 
 convert(::Type{SymPy.Sym}, x::SymEngine.Basic) = sympify(string(x))
-convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = SymEngine.Basic(x)
+convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = SymEngine.Basic(string(x))
 
 convert(::Type{Poly}, p::SymPy.Sym) = Poly(SymPy.coeffs(p))
 
@@ -52,7 +52,7 @@ end
 
 function gcd(p::Poly{SymPy.Sym}, q::Poly{SymPy.Sym})
     res = SymPy.gcd(convert(SymPy.Sym, p), convert(SymPy.Sym, q))
-    if !SymPy.has(res, SymPy.Sym(p.var))
+    if !res.has(SymPy.Sym(p.var))
         return Poly([res], p.var)
     end
     Poly(SymPy.coeffs(SymPy.Poly(res, SymPy.Sym(p.var))), p.var)
