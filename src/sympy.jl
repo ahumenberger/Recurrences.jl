@@ -1,7 +1,7 @@
 free_symbols(x::Union{SymPy.Sym, Vector{SymPy.Sym}}) = SymPy.free_symbols(x)
 free_symbols(x::Union{SymEngine.Basic, Vector{SymEngine.Basic}}) = SymEngine.free_symbols(x)
 
-coeff(x::SymPy.Sym, b::SymPy.Sym) = SymPy.coeff(x, b)
+coeff(x::SymPy.Sym, b::SymPy.Sym) = x.coeff(b)
 
 subs(x::SymPy.Sym, args...) = SymPy.subs(x, args...)
 subs(x::SymEngine.Basic, args...) = SymEngine.subs(x, args...)

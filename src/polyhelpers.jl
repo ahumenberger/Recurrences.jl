@@ -39,14 +39,8 @@ end
 convert(::Type{Poly{SymPy.Sym}}, p::Poly{SymEngine.Basic}) = Poly(convert.(SymPy.Sym, coeffs(p)), p.var)
 convert(::Type{Poly{SymEngine.Basic}}, p::Poly{SymPy.Sym}) = Poly(convert.(SymEngine.Basic, coeffs(p)), p.var)
 
-convert(::Type{SymPy.Sym}, x::SymEngine.Basic) = begin 
-    # @info "" x SymPy.Sym(string(x))
-    SymPy.Sym(string(x))
-end
-convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = begin
-    # @info "asdf" x  convert(Expr, x)
-    convert(Expr, x) |> SymEngine.Basic
-end
+convert(::Type{SymPy.Sym}, x::SymEngine.Basic) = sympify(string(x))
+convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = SymEngine.Basic(x)
 
 convert(::Type{Poly}, p::SymPy.Sym) = Poly(SymPy.coeffs(p))
 
@@ -129,7 +123,7 @@ Base.promote_rule(::Type{T}, ::Type{SymEngine.Basic}) where{T<:SymPy.SymbolicObj
 
 Base.isequal(x::SymEngine.Basic, y::SymPy.Sym) = Base.isequal(promote(x, y)...)
 
-mroots(p::Poly{SymPy.Sym}) = SymPy.polyroots(convert(SymPy.Sym, p))
+mroots(p::Poly{SymPy.Sym}) = SymPy.roots(convert(SymPy.Sym, p))
 mroots(p::Poly{SymEngine.Basic}) = convert(Dict{Basic,Int}, mroots(convert(Poly{SymPy.Sym}, p)))
 
 
