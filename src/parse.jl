@@ -124,8 +124,8 @@ macro lrs(input)
     @capture(input, begin fields__ end)
     for ex in fields
         @capture(ex, lhs_ = rhs_)
-        lhs = SymPy.Sym(string(lhs))
-        rhs = SymPy.Sym(string(unblock(rhs)))
+        lhs = sympify(string(lhs))
+        rhs = sympify(string(unblock(rhs)))
         entry, arg = LinearRecEntry(T, lhs - rhs)
         push!(entries, entry)
         push!(args, arg)
@@ -142,7 +142,7 @@ macro rec(expr)
 end
 
 function function_symbols(expr::SymPy.Sym)
-    return Sym.(collect(atoms(expr, AppliedUndef)))
+    return sympify.(collect(expr.atoms(AppliedUndef)))
 end
 
 deglist(x, vars) = convert(Tuple, degree_list(x, vars...).x)
@@ -154,17 +154,18 @@ LinearRecEntry(t::Type{T}, expr::Expr) where {T<:Union{SymPy.Sym, SymEngine.Basi
 function LinearRecEntry(::Type{T}, expr::SymPy.Sym) where {T<:Union{SymPy.Sym, SymEngine.Basic}}
     funcs = function_symbols(expr)
     @assert length(funcs) > 0 "Not a recurrence: no functions present"
-    args = Iterators.flatten(SymPy.args.(funcs)) |> collect
+    args = Iterators.flatten([f.args for f in funcs]) |> collect
     fsyms = free_symbols(args) |> Base.unique
     @assert length(fsyms) == 1 "More (or less) than one variable in the function arguments, got: $(fsyms)"
-    if !islinear(expr, funcs)
+    # if !islinear(expr, funcs)
+    if !sympy.Poly(expr, funcs...).is_linear
         return nothing, nothing
     end
 
     farg = fsyms[1]
     # remove functions which are not of the form x(n+1)
-    funcs = SymPy.func.(filter(x -> has(x, farg), funcs)) |> Base.unique
-    args = filter(x -> has(x, farg), args)
+    funcs = [x.func for x in filter(x -> x.has(farg), funcs)] |> Base.unique
+    args = filter(x -> x.has(farg), args)
     @assert !(string(farg) in string.(funcs)) "Ambiguous symbol: $(farg) is a function and an argument"
 
     args = args .- farg
@@ -183,7 +184,7 @@ function LinearRecEntry(::Type{T}, expr::SymPy.Sym) where {T<:Union{SymPy.Sym, S
             co = coeff(expr, f(farg + i))
             if !iszero(co)
                 hom += co * fc
-                g = var(T, string(SymPy.Sym(f.x)))
+                g = var(T, string(Sym(f)))
                 if T == SymEngine.Basic
                     co = convert(SymEngine.Basic, string(co))
                 end
