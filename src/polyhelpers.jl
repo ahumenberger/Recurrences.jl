@@ -27,7 +27,7 @@ convert(::Type{Poly{SymPy.Sym}}, p::Poly{SymEngine.Basic}) = Poly(convert.(SymPy
 convert(::Type{Poly{SymEngine.Basic}}, p::Poly{SymPy.Sym}) = Poly(convert.(SymEngine.Basic, coeffs(p)), p.var)
 
 convert(::Type{SymPy.Sym}, x::SymEngine.Basic) = sympify(string(x))
-convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = SymEngine.Basic(x)
+convert(::Type{SymEngine.Basic}, x::SymPy.Sym) = SymEngine.Basic(string(x))
 
 convert(::Type{Poly}, p::SymPy.Sym) = Poly(SymPy.coeffs(p))
 
