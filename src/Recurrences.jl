@@ -72,11 +72,20 @@ end
 
 function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
     lhss, rhss = split_assign(exprs)
-    lrs = LinearRecSystem(Basic(lc), map(Basic, lhss))
+    lrs = LinearRecSystem(Basic(lc), map(Basic, Base.unique(lhss)))
+    for (i,v) in enumerate(lhss)
+        j = findfirst(x->x==v, lhss)
+        if j < i
+            rhss[i] = replace_post(rhss[i], v, rhss[j])
+            deleteat!(lhss, j)
+            deleteat!(rhss, j)
+        end
+    end
     for (i,v) in enumerate(lhss)
         rhss = RExpr[replace_post(x, v, (i < j ? :($v($lc+1)) : :($v($lc)))) for (j,x) in enumerate(rhss)]
     end
     lhss = [Expr(:call, v, Expr(:call, :+, lc, 1)) for v in lhss]
+    @debug "Splitted assignments" rhss lhss
     pushexpr!(lrs, lhss, rhss)
 end
 
