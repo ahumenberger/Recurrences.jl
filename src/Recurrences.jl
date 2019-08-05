@@ -70,27 +70,45 @@ function pushexpr!(lrs::LinearRecSystem, ex::Expr...)
     lrs
 end
 
-function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
-    lhss, rhss = split_assign(exprs)
-    lrs = LinearRecSystem(Basic(lc), map(Basic, Base.unique(lhss)))
+function _parallel(lhss::Vector{Symbol}, rhss::Vector{RExpr})
+    del = Int[]
     for (i,v) in enumerate(lhss)
-        j = findfirst(x->x==v, lhss)
-        if j < i
-            rhss[i] = replace_post(rhss[i], v, rhss[j])
-            deleteat!(lhss, j)
-            deleteat!(rhss, j)
+        j = findnext(x->x==v, lhss, i+1)
+        l = j === nothing ? lastindex(lhss) : j
+        for k in i+1:l
+            rhss[k] = replace_post(rhss[k], v, rhss[i])
+        end
+        if j != nothing
+            push!(del, i)
         end
     end
-    for (i,v) in enumerate(lhss)
-        rhss = RExpr[replace_post(x, v, (i < j ? :($v($lc+1)) : :($v($lc)))) for (j,x) in enumerate(rhss)]
+    if !isempty(del)
+        deleteat!(lhss, del...)
+        deleteat!(rhss, del...)
     end
-    lhss = [Expr(:call, v, Expr(:call, :+, lc, 1)) for v in lhss]
-    @debug "Splitted assignments" rhss lhss
-    pushexpr!(lrs, lhss, rhss)
+    lhss, rhss
+end
+
+# _islinear(expr, vars) = SymEngine.degree() degree()
+
+function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
+    lhss, rhss = _parallel(split_assign(exprs)...)
+    @info "Splitted and parallel assignments" rhss lhss
+    _lrs_parallel(lhss, rhss, lc)
+    # lrs = LinearRecSystem(Basic(lc), map(Basic, Base.unique(lhss)))
+    # for (i,v) in enumerate(lhss)
+    #     rhss = RExpr[replace_post(x, v, (i < j ? :($v($lc+1)) : :($v($lc)))) for (j,x) in enumerate(rhss)]
+    # end
+    # lhss = [Expr(:call, v, Expr(:call, :+, lc, 1)) for v in lhss]
+    # pushexpr!(lrs, lhss, rhss)
 end
 
 function lrs_parallel(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
     lhss, rhss = split_assign(exprs)
+    _lrs_parallel(lhss, rhss, lc)
+end
+
+function _lrs_parallel(lhss::Vector{Symbol}, rhss::Vector{RExpr}, lc::Symbol)
     lrs = LinearRecSystem(Basic(lc), map(Basic, lhss))
     for (i, rhs) in enumerate(rhss)
         rhss[i] = MacroTools.postwalk(x -> x isa Symbol && x in lhss ? :($x($lc)) : x, rhs)
