@@ -1,6 +1,6 @@
 module Recurrences
 
-export @rec, @lrs
+export @rec, @lrs, @lrs_parallel, @solve_parallel
 export lrs, lrs_sequential, lrs_parallel
 export Recurrence, LinearRecurrence, CFiniteRecurrence, HyperRecurrence
 export ClosedForm, CFiniteClosedForm, HyperClosedForm
@@ -18,6 +18,8 @@ using MacroTools
 import Polynomials: Poly, printpoly, degree, coeffs, polyval, polyder
 import Base: convert, denominator
 
+const RExpr = Union{Expr,Symbol,Number}
+
 include("rationalfunction.jl")
 include("polyhelpers.jl")
 include("zuercher.jl")
@@ -27,6 +29,7 @@ include("cftypes.jl")
 include("recsystem.jl")
 include("sympy.jl")
 include("utils.jl")
+include("poly.jl")
 
 const AppliedUndef = PyCall.PyNULL()
 
@@ -36,8 +39,6 @@ end
 
 replace_post(ex, s, s′) = MacroTools.postwalk(x -> x == s ? s′ : x, ex)
 gensym_unhashed(s::Symbol) = Symbol(replace(string(gensym(s)), "#"=>""))
-
-const RExpr = Union{Expr,Symbol,Number}
 
 function split_assign(xs::Vector{Expr})
     ls = Symbol[]
@@ -50,7 +51,7 @@ function split_assign(xs::Vector{Expr})
     ls, rs
 end
 
-function pushexpr!(lrs::LinearRecSystem, ls::Vector{Expr}, rs::Vector{RExpr})
+function pushexpr!(lrs::LinearRecSystem, ls::Vector{Expr}, rs::AbstractVector{RExpr})
     for (l, r) in zip(ls, rs)
         expr = :($l - $r)
         entry, _ = LinearRecEntry(Basic, expr)
@@ -82,14 +83,13 @@ function _parallel(lhss::Vector{Symbol}, rhss::Vector{RExpr})
             push!(del, i)
         end
     end
+    
     if !isempty(del)
-        deleteat!(lhss, del...)
-        deleteat!(rhss, del...)
+        deleteat!(lhss, Tuple(del))
+        deleteat!(rhss, Tuple(del))
     end
     lhss, rhss
 end
-
-# _islinear(expr, vars) = SymEngine.degree() degree()
 
 function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
     lhss, rhss = _parallel(split_assign(exprs)...)
@@ -108,13 +108,44 @@ function lrs_parallel(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
     _lrs_parallel(lhss, rhss, lc)
 end
 
-function _lrs_parallel(lhss::Vector{Symbol}, rhss::Vector{RExpr}, lc::Symbol)
-    lrs = LinearRecSystem(Basic(lc), map(Basic, lhss))
-    for (i, rhs) in enumerate(rhss)
-        rhss[i] = MacroTools.postwalk(x -> x isa Symbol && x in lhss ? :($x($lc)) : x, rhs)
+function _lrs_parallel(lhss::AbstractVector{Symbol}, rhss::AbstractVector{RExpr}, lc::Symbol)
+    linear = findall(x->_islinear(x, lhss), rhss)
+    nonlinear = setdiff(eachindex(lhss), linear)
+    rest = (view(lhss, nonlinear), view(rhss, nonlinear))
+    _lhss, _rhss = view(lhss, linear), view(rhss, linear)
+    lrs = LinearRecSystem(Basic(lc), map(Basic, _lhss))
+    for (i, rhs) in enumerate(_rhss)
+        _rhss[i] = MacroTools.postwalk(x -> x isa Symbol && x in _lhss ? :($x($lc)) : x, rhs)
     end
-    lhss = [Expr(:call, v, Expr(:call, :+, lc, 1)) for v in lhss]
-    pushexpr!(lrs, lhss, rhss)
+    _lhss = [Expr(:call, v, Expr(:call, :+, lc, 1)) for v in _lhss]
+    pushexpr!(lrs, _lhss, _rhss), rest
+end
+
+function solve_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
+
+end
+
+function solve_parallel(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
+    lhss, rhss = split_assign(exprs)
+    _solve_parallel(lhss, rhss, lc)
+end
+
+function _solve_parallel(lhss::AbstractVector{Symbol}, rhss::AbstractVector{RExpr}, lc::Symbol)
+    lrs, remaining = _lrs_parallel(lhss, rhss, lc)
+    @info "" lrs
+    cfs = solve(lrs)
+    cfmap = Dict{Symbol, RExpr}(Symbol(string(x.func)) => convert(Expr, expression(x)) for x in cfs)
+    _lhss, _rhss = remaining
+    isempty(_lhss) && return (cfs, remaining)
+
+    for (i, rhs) in enumerate(_rhss)
+        _rhss[i] = MacroTools.postwalk(x -> x isa Symbol && x in keys(cfmap) ? cfmap[x] : x, rhs)
+    end
+    _cfs, _ = _solve_parallel(_lhss, _rhss, lc)
+    if isempty(_cfs)
+        @warn("Cannot solve $(_lhss)")
+    end
+    return cfs, remaining
 end
 
 function lrs(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))

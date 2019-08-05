@@ -18,6 +18,16 @@ macro lrs(input)
     return sys
 end
 
+macro lrs_parallel(input)
+    @capture(input, begin fields__ end)
+    lrs_parallel(Vector{Expr}(fields))
+end
+
+macro solve_parallel(input)
+    @capture(input, begin fields__ end)
+    solve_parallel(Vector{Expr}(fields))
+end
+
 macro rec(expr)
     LinearRecEntry(SymPy.Sym(string(expr)))[1]
 end

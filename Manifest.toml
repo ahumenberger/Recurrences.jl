@@ -51,6 +51,12 @@ uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
+[[DynamicPolynomials]]
+deps = ["LinearAlgebra", "MultivariatePolynomials", "Pkg", "Reexport", "Test"]
+git-tree-sha1 = "73bb16dca284abf4aeb5e6055d1be00a9ccf1d20"
+uuid = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
+version = "0.3.1"
+
 [[InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
@@ -86,6 +92,12 @@ uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
+
+[[MultivariatePolynomials]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "8f1c7df2386a553532095a42028d03ad627a4437"
+uuid = "102ac46a-7ee4-5c85-9060-abc95bfdeaa3"
+version = "0.3.1"
 
 [[OrderedCollections]]
 deps = ["Random", "Serialization", "Test"]
@@ -131,6 +143,12 @@ uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 git-tree-sha1 = "7bdce29bc9b2f5660a6e5e64d64d91ec941f6aa2"
 uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 version = "0.7.0"
+
+[[Reexport]]
+deps = ["Pkg"]
+git-tree-sha1 = "7b1d07f411bc8ddb7977ec7f377b97b158514fe0"
+uuid = "189a3867-3050-52da-a836-e630ba90ab69"
+version = "0.2.0"
 
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
