@@ -5,7 +5,7 @@ struct LinearRecSystem{S,T}
     inhom::Vector{<:T}
 end
 
-LinearRecSystem{S,T}(arg::S, funcs::Vector{S}=S[]) where {S,T} = LinearRecSystem{S,T}(funcs, arg, Matrix{RPoly}[], RPoly[])
+LinearRecSystem{S,T}(arg::S, funcs::Vector{S}=S[]) where {S,T} = LinearRecSystem{S,T}(funcs, arg, Matrix{APL}[], APL[])
 LinearRecSystem(funcs::Vector{S}, arg::S, mat::Vector{Matrix{T}}) where {S,T} = LinearRecSystem{S,T}(funcs, arg, mat, zeros(T, size(mat[1], 1)))
 
 order(lrs::LinearRecSystem) = length(lrs.mat) - 1
@@ -51,7 +51,7 @@ function Base.push!(lrs::LinearRecSystem{S,T}, entries...) where {S,T}
                 @assert idx != nothing
                 row[idx] = val
             end
-            @info "Test" lrs.mat[i] row transpose(row)
+            @info "Test" lrs.mat[i] row #transpose(row)
             lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
         end
         row = zeros(P, length(lrs.funcs))
@@ -142,15 +142,15 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
 
     σ = x -> MultivariatePolynomials.subs(x, lrs.arg => lrs.arg-1)
-    σinv = x -> subs(x, lrs.arg => lrs.arg+1)
+    σinv = x -> MultivariatePolynomials.subs(x, lrs.arg => lrs.arg+1)
     δ = x -> σ(x) - x
     @info "" lrs.mat[1]
     M = σ.(-lrs.mat[1]) - UniformScaling(1)
     C, A = rational_form(copy(M), σ, σinv, δ)
-    C = simplify.(C)
-    A = simplify.(A)
+    # C = simplify.(C)
+    # A = simplify.(A)
 
-    @debug "Zürcher" input=-lrs.mat[1] C A M simplify.(inv(A) * M * A)
+    @info "Zürcher" input=-lrs.mat[1] C A M #simplify.(inv(A) * M * A)
     @assert simplify.(inv(A) * M * A) == C "Zürcher wrong"
 
     σinv.(C), A

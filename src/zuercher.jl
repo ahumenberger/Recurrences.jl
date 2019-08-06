@@ -99,14 +99,15 @@ end
 function transform_lemma2(T::Matrix{S}, i0::Int, i::Int, l::Int, σ, σ_inv, δ, B::Matrix{S}) where {S}
     n = size(T, 1)
     T, B = transformP(T, i0, i+1, l, B)
-    a = σ_inv(1/T[i,i+1])
+    a = σ_inv(inv(T[i,i+1]))
+    @info "" T B a
     for j in i:n
         T[j,i+1] *= σ(a) # D1
     end
     for j in i0:n
         T[i+1,j] /= a # D2
     end
-    T[i+1,i+1] += δ(a) / a # D3
+    T[i+1,i+1] += δ(a) * inv(a) # D3
     for j in 1:n
         B[j,i+1] *= a # basis change
     end

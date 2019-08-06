@@ -21,9 +21,9 @@ import Polynomials: Poly, printpoly, degree, coeffs, polyval, polyder
 import Base: convert, denominator
 
 const RExpr = Union{Expr,Symbol,Number}
-const APL = AbstractPolynomialLike
-const Var = AbstractVariable
 const RPoly = Polynomial{true,Rational{Int}}
+const APL = RationalPoly{RPoly,RPoly}
+const Var = AbstractVariable
 
 include("rationalfunction.jl")
 include("polyhelpers.jl")

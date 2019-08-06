@@ -30,8 +30,13 @@ function _islinear(x::RExpr, vars::AbstractVector{Symbol})
     all(MultivariatePolynomials.degree(m, v) < 2 for v in vs for m in terms(p))
 end
 
-Base.zeros(::Type{APL}, dims::Base.DimOrInd...) = zeros(RPoly, dims...)
-Base.zero(::Type{APL}) = zero(RPoly)
+# Base.zeros(::Type{APL}, dims::Base.DimOrInd...) = zeros(APL, dims...)
+# Base.zero(::Type{APL}) = zero(APL)
 
-Base.promote_op(transpose, ::Type{APL}...) = APL
-Base.promote_op(transpose, ::Type{RPoly}...) = RPoly
+# Base.promote_op(transpose, ::Type{APL}...) = APL
+# Base.promote_op(transpose, ::Type{RPoly}...) = RPoly
+
+APL(x::Bool) = x ? one(APL) : zero(APL)
+
+LinearAlgebra.transpose(p::RationalPoly) = transpose(numerator(p)) / transpose(denominator(p))
+LinearAlgebra.adjoint(p::RationalPoly) = adjoint(numerator(p)) / adjoint(denominator(p))
