@@ -1,12 +1,12 @@
-struct LinearRecSystem{T}
-    funcs::Vector{T}
-    arg::T
+struct LinearRecSystem{S,T}
+    funcs::Vector{S}
+    arg::S
     mat::Vector{Matrix{T}}
     inhom::Vector{T}
 end
 
-LinearRecSystem(arg::T, funcs::Vector{T}=T[]) where {T} = LinearRecSystem{T}(funcs, arg, [], [])
-LinearRecSystem(funcs::Vector{T}, arg::T, mat::Vector{Matrix{T}}) where {T} = LinearRecSystem{T}(funcs, arg, mat, zeros(T, size(mat[1], 1)))
+LinearRecSystem{S,T}(arg::S, funcs::Vector{S}=S[]) where {S,T} = LinearRecSystem{S,T}(funcs, arg, Matrix{T}[], [])
+LinearRecSystem(funcs::Vector{S}, arg::S, mat::Vector{Matrix{T}}) where {S,T} = LinearRecSystem{S,T}(funcs, arg, mat, zeros(T, size(mat[1], 1)))
 
 order(lrs::LinearRecSystem) = length(lrs.mat) - 1
 nrows(lrs::LinearRecSystem) = length(lrs.mat) == 0 ? 0 : size(lrs.mat[1], 1)
@@ -14,11 +14,13 @@ nfuncs(lrs::LinearRecSystem) = length(lrs.funcs)
 ishomogeneous(lrs::LinearRecSystem) = iszero(lrs.inhom)
 isdecoupled(lrs::LinearRecSystem) = all(iszero.([m - Diagonal(m) for m in lrs.mat]))
 
-const LinearEntry{T} = NamedTuple{(:coeffs, :inhom), Tuple{Vector{Dict{T,T}}, T}}
+const LinearEntry{S,T} = NamedTuple{(:coeffs, :inhom), Tuple{Vector{Dict{S,<:T}}, <:T}}
 
 findelem(A, e) = findfirst(x -> x == e, A)
 
-function Base.push!(lrs::LinearRecSystem{T}, entries::LinearEntry{T}...) where {T}
+function Base.push!(lrs::LinearRecSystem{S,T}, entries...) where {S,T}
+    P = eltype(lrs.inhom)
+    @info "" P
     for entry in entries
         # get all function symbols not occurring in lrs
         newfuncs = setdiff(Iterators.flatten(keys.(entry.coeffs)), lrs.funcs)
@@ -29,19 +31,19 @@ function Base.push!(lrs::LinearRecSystem{T}, entries::LinearEntry{T}...) where {
             append!(lrs.funcs, newfuncs)
             # @info "" lrs.funcs newfuncs
             for (i, m) in enumerate(lrs.mat)
-                lrs.mat[i] = hcat(m, zeros(T, size(m, 1), newfuncslen))
+                lrs.mat[i] = hcat(m, zeros(P, size(m, 1), newfuncslen))
             end
         end
         # increase order if necessary - add new matrix
         orderdiff = length(entry.coeffs) - length(lrs.mat)
         if orderdiff > 0
             for _ in 1:orderdiff
-                push!(lrs.mat, zeros(T, nrows(lrs), nfuncs(lrs)))
+                push!(lrs.mat, zeros(P, nrows(lrs), nfuncs(lrs)))
             end
         end
         # add entries to matrices
         for (i, dict) in enumerate(entry.coeffs)
-            row = zeros(T, length(lrs.funcs))
+            row = zeros(P, length(lrs.funcs))
             for (key, val) in dict
                 # key should be contained in lrs.funcs
                 idx = findelem(lrs.funcs, key)
@@ -49,10 +51,10 @@ function Base.push!(lrs::LinearRecSystem{T}, entries::LinearEntry{T}...) where {
                 @assert idx != nothing
                 row[idx] = val
             end
-            # @info "Test" lrs.mat[i] row
+            @info "Test" lrs.mat[i] row transpose(row)
             lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
         end
-        row = zeros(T, length(lrs.funcs))
+        row = zeros(P, length(lrs.funcs))
         for i in length(entry.coeffs)+1:length(lrs.mat)
             lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
         end
