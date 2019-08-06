@@ -9,7 +9,7 @@ export mkvar, mkpoly
 mkpoly(x::Expr) = eval(symbols(y->mkvar(y), x))
 mkpoly(x::String) = mkpoly(Meta.parse(x))
 mkpoly(x::Symbol) = mkvar(x)
-mkpoly(x::Number) = iszero(x) ? zero(Polynomial{true,Rational}) : one(Polynomial{true,Rational}) * x
+mkpoly(x::Number) = iszero(x) ? zero(Polynomial{true,Int}) : one(Polynomial{true,Int}) * x
 
 _varmap = Dict{Symbol, AbstractVariable}()
 
@@ -30,7 +30,8 @@ function _islinear(x::RExpr, vars::AbstractVector{Symbol})
     all(MultivariatePolynomials.degree(m, v) < 2 for v in vs for m in terms(p))
 end
 
-Base.zeros(::Type{RAPL}, dims::Base.DimOrInd...) = zeros(Polynomial{true,Rational}, dims...)
+Base.zeros(::Type{APL}, dims::Base.DimOrInd...) = zeros(RPoly, dims...)
+Base.zero(::Type{APL}) = zero(RPoly)
 
+Base.promote_op(transpose, ::Type{APL}...) = APL
 Base.promote_op(transpose, ::Type{RPoly}...) = RPoly
-RAPL(x) = x

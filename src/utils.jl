@@ -13,6 +13,7 @@ end
 
 var(::Type{SymPy.Sym}, s::String) = SymPy.Sym(s)
 var(::Type{SymEngine.Basic}, s::String) = SymEngine.symbols(s)
+var(::Type{Var}, s::String) = mkvar(s)
 
 function summands(expr::Sym)
     expr = expand(expr)

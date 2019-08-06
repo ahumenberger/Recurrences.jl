@@ -21,9 +21,9 @@ import Polynomials: Poly, printpoly, degree, coeffs, polyval, polyder
 import Base: convert, denominator
 
 const RExpr = Union{Expr,Symbol,Number}
-const RAPL = MultivariatePolynomials.APL{Rational}
-const RPoly = Polynomial{true,Rational}
-const Var = PolyVar{true}
+const APL = AbstractPolynomialLike
+const Var = AbstractVariable
+const RPoly = Polynomial{true,Rational{Int}}
 
 include("rationalfunction.jl")
 include("polyhelpers.jl")
@@ -70,7 +70,7 @@ function pushexpr!(lrs::LinearRecSystem{S,T}, ex::Expr...) where {S,T}
         if @capture(x, l_ = r_)
             x = :($(unblock(l)) - $(unblock(r)))
         end
-        entry, _ = LinearRecEntry(Var, RAPL, x)
+        entry, _ = LinearRecEntry(Var, APL, x)
         @info "" entry.coeffs entry.inhom
         @info "" entry isa LinearEntry{S,T}
         # @info "" LinearEntry{S,T}(entry) lrs
@@ -158,7 +158,7 @@ end
 
 function lrs(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
     @info "" exprs lc
-    lrs = LinearRecSystem{Var,RAPL}(mkvar(lc))
+    lrs = LinearRecSystem{Var,APL}(mkvar(lc))
     pushexpr!(lrs, exprs...)
 end
 

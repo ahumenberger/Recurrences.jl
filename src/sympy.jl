@@ -102,7 +102,7 @@ function LinearRecEntry(::Type{T}, expr::SymPy.Sym) where {T<:Union{SymPy.Sym, S
     (coeffs = dicts, inhom = inhom), farg
 end
 
-function LinearRecEntry(::Type{Var}, ::Type{RAPL}, expr::Expr)
+function LinearRecEntry(::Type{Var}, ::Type{APL}, expr::Expr)
     expr = sympify(string(expr))
     funcs = function_symbols(expr)
     @assert length(funcs) > 0 "Not a recurrence: no functions present"
@@ -124,8 +124,8 @@ function LinearRecEntry(::Type{Var}, ::Type{RAPL}, expr::Expr)
     # end
     maxarg = convert(Int, maximum(args))
 
-    hom = zero(RPoly)
-    dicts = [Dict{Var,RPoly}() for _ in 1:maxarg + 1]
+    hom = zero(APL)
+    dicts = [Dict{Var,APL}() for _ in 1:maxarg + 1]
     for i in 0:maxarg
         for f in funcs
             fc = f(farg + i)

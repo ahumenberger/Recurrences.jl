@@ -1,11 +1,11 @@
 struct LinearRecSystem{S,T}
     funcs::Vector{S}
     arg::S
-    mat::Vector{Matrix{T}}
-    inhom::Vector{T}
+    mat::Vector{Matrix{<:T}}
+    inhom::Vector{<:T}
 end
 
-LinearRecSystem{S,T}(arg::S, funcs::Vector{S}=S[]) where {S,T} = LinearRecSystem{S,T}(funcs, arg, Matrix{T}[], [])
+LinearRecSystem{S,T}(arg::S, funcs::Vector{S}=S[]) where {S,T} = LinearRecSystem{S,T}(funcs, arg, Matrix{RPoly}[], RPoly[])
 LinearRecSystem(funcs::Vector{S}, arg::S, mat::Vector{Matrix{T}}) where {S,T} = LinearRecSystem{S,T}(funcs, arg, mat, zeros(T, size(mat[1], 1)))
 
 order(lrs::LinearRecSystem) = length(lrs.mat) - 1
@@ -79,13 +79,13 @@ function firstorder(lrs::LinearRecSystem{T}) where {T}
     LinearRecSystem(funcs, lrs.arg, [mat], lrs.inhom)
 end
 
-Base.copy(lrs::LinearRecSystem) = LinearRecSystem(copy(lrs.funcs), lrs.arg, copy(lrs.mat), copy(lrs.inhom))
+Base.copy(lrs::LinearRecSystem{S,T}) where {S,T} = LinearRecSystem{S,T}(copy(lrs.funcs), lrs.arg, copy(lrs.mat), copy(lrs.inhom))
 
 function homogenize(lrs::LinearRecSystem)
     homogenize!(copy(lrs))
 end
 
-function homogenize!(lrs::LinearRecSystem{T}) where {T}
+function homogenize!(lrs::LinearRecSystem{S,T}) where {S,T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     if ishomogeneous(lrs)
         return lrs
@@ -100,7 +100,7 @@ function homogenize!(lrs::LinearRecSystem{T}) where {T}
         lrs.mat[i][n,n] = 1
     end
     
-    push!(lrs.funcs, variables(T))
+    push!(lrs.funcs, variables(S))
     push!(lrs.inhom, 0)
     fill!(lrs.inhom, 0)
     lrs
@@ -141,9 +141,10 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
 
-    σ = x -> subs(x, lrs.arg => lrs.arg-1)
+    σ = x -> MultivariatePolynomials.subs(x, lrs.arg => lrs.arg-1)
     σinv = x -> subs(x, lrs.arg => lrs.arg+1)
     δ = x -> σ(x) - x
+    @info "" lrs.mat[1]
     M = σ.(-lrs.mat[1]) - UniformScaling(1)
     C, A = rational_form(copy(M), σ, σinv, δ)
     C = simplify.(C)
