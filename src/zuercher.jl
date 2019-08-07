@@ -100,7 +100,7 @@ function transform_lemma2(T::Matrix{S}, i0::Int, i::Int, l::Int, σ, σ_inv, δ,
     n = size(T, 1)
     T, B = transformP(T, i0, i+1, l, B)
     a = σ_inv(inv(T[i,i+1]))
-    @info "" T B a
+
     for j in i:n
         T[j,i+1] *= σ(a) # D1
     end
