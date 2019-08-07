@@ -150,8 +150,8 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     # C = simplify.(C)
     # A = simplify.(A)
 
-    @info "Zürcher" input=-lrs.mat[1] C A M #simplify.(inv(A) * M * A)
-    @assert simplify.(inv(A) * M * A) == C "Zürcher wrong"
+    @debug "Zürcher" input=-lrs.mat[1] C A M (inv(A) * M * σ.(A) + inv(A) * δ.(A))
+    @assert inv(A) * M * σ.(A) + inv(A) * δ.(A) == C "Zürcher wrong"
 
     σinv.(C), A
 end
