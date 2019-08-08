@@ -124,7 +124,7 @@ function LinearRecEntry(::Type{Var}, ::Type{APL}, expr::Expr)
     # end
     maxarg = convert(Int, maximum(args))
 
-    hom = zero(APL)
+    hom = zero(Sym)
     dicts = [Dict{Var,APL}() for _ in 1:maxarg + 1]
     for i in 0:maxarg
         for f in funcs
@@ -139,7 +139,6 @@ function LinearRecEntry(::Type{Var}, ::Type{APL}, expr::Expr)
         end
     end
 
-    @info "" string(-(expr - hom))
     inhom = mkpoly(string(-(expr - hom)))
     farg = mkvar(string(farg))
 
@@ -153,6 +152,7 @@ coeff(x::SymPy.Sym, b::SymPy.Sym) = x.coeff(b)
 
 subs(x::SymPy.Sym, args...) = SymPy.subs(x, args...)
 subs(x::SymEngine.Basic, args...) = SymEngine.subs(x, args...)
+subs(x::RationalPoly, args...) = MultivariatePolynomials.subs(x, args...)
 
 subs(ex::AbstractArray, args...; kwargs...) = map(u -> subs(u, args...; kwargs...), ex)
 # subs(ex::AbstractArray{SymEngine.Basic}, args...; kwargs...) = map(u -> subs(u, args...; kwargs...), ex)

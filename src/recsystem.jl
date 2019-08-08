@@ -20,7 +20,6 @@ findelem(A, e) = findfirst(x -> x == e, A)
 
 function Base.push!(lrs::LinearRecSystem{S,T}, entries...) where {S,T}
     P = eltype(lrs.inhom)
-    @info "" P
     for entry in entries
         # get all function symbols not occurring in lrs
         newfuncs = setdiff(Iterators.flatten(keys.(entry.coeffs)), lrs.funcs)
@@ -51,7 +50,6 @@ function Base.push!(lrs::LinearRecSystem{S,T}, entries...) where {S,T}
                 @assert idx != nothing
                 row[idx] = val
             end
-            @info "Test" lrs.mat[i] row #transpose(row)
             lrs.mat[i] = vcat(lrs.mat[i], transpose(row))
         end
         row = zeros(P, length(lrs.funcs))
@@ -137,14 +135,13 @@ function blockdiagonal(m::Matrix{T}) where {T}
     blocks
 end
 
-function decouple(lrs::LinearRecSystem{T}) where {T}
+function decouple(lrs::LinearRecSystem)
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
 
     σ = x -> MultivariatePolynomials.subs(x, lrs.arg => lrs.arg-1)
     σinv = x -> MultivariatePolynomials.subs(x, lrs.arg => lrs.arg+1)
     δ = x -> σ(x) - x
-    @info "" lrs.mat[1]
     M = σ.(-lrs.mat[1]) - UniformScaling(1)
     C, A = rational_form(copy(M), σ, σinv, δ)
     # C = simplify.(C)
@@ -156,13 +153,16 @@ function decouple(lrs::LinearRecSystem{T}) where {T}
     σinv.(C), A
 end
 
-function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
+function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::S) where {S,T}
     csize = size(C, 1)
     @debug "Solve companion block" C
-    coeffpoly = sum(c * Poly(pascal(i-1, alt = true)) for (i, c) in enumerate(C[end,:])) + Poly(pascal(csize, alt = true))
-    @debug "Coefficients for recurrence" simplify.(Polynomials.coeffs(coeffpoly))
-    coeffs = Polynomials.coeffs(coeffpoly)
-    if any(arg in free_symbols(c) for c in coeffs)
+    v = mkvar("x")
+    cp1 = sum(polynomial([c * p for p in pascal(i-1, alt = true)], [v^j for j in 0:i-1]) for (i, c) in enumerate(C[end,:]))
+    cp2 = polynomial(pascal(csize, alt = true), [v^j for j in 0:csize])
+    coeffpoly = cp1 + cp2
+    coeffs = coefficients(coeffpoly)
+    @debug "Coefficients for recurrence" coeffs
+    if any(nterms(numerator(c)) > 1 || nterms(numerator(c)) > 1 for c in coeffs)
         @error "Only C-finite recurrences supported by now"
         RecurrenceT = HyperRecurrence
         ClosedFormT = HyperClosedForm
@@ -170,7 +170,7 @@ function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
         RecurrenceT = CFiniteRecurrence
         ClosedFormT = CFiniteClosedForm
     end
-    rec = RecurrenceT(variables(T), arg, coeffs)
+    rec = RecurrenceT(variables(Var), arg, coeffs)
     @debug "Reference recurrence" rec
     cf = closedform(rec)
 
@@ -186,7 +186,7 @@ function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::T) where {T}
     cforms
 end
 
-function solve(lrs::LinearRecSystem{T}) where {T}
+function solve(lrs::LinearRecSystem{S,T}) where {S,T}
     cforms = CFiniteClosedForm[]
     if isdecoupled(lrs) && ishomogeneous(lrs)
         for i in 1:nrows(lrs)
@@ -202,20 +202,20 @@ function solve(lrs::LinearRecSystem{T}) where {T}
         M, A = decouple(lrs)
         blocks = blockdiagonal(M)
 
-        initvec = [initvar(f, 0) for f in lrs.funcs]
+        initvec = T[initvar(f, 0) for f in lrs.funcs]
         if lrs.funcs != oldlrs.funcs
             # Assume lrs got homogenized, therefore initial value of introduced variable is 1
-            initvec[end] = T(1)
+            initvec[end] = 1
         end
         maxsize = maximum(size.(blocks, 1))
         M = -lrs.mat[1]
-        S = UniformScaling(1)
+        J = UniformScaling(1)
         D = inv(A)
-        imat = Matrix{T}(undef, size(M, 1), 0)
+        imat = zeros(T, size(M,1), 0)
         for i in 0:maxsize-1
-            ivec = (subs(D, lrs.arg => i) * S * initvec)
+            ivec = (subs(D, lrs.arg => i) * J * initvec)
             imat = hcat(imat, ivec)
-            S = subs(M, lrs.arg, i+1) * S
+            J = subs(M, lrs.arg => i+1) * J
         end
         @debug "Matrix containing initial values" imat
         result = ClosedForm[]

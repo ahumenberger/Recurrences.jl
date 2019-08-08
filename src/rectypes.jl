@@ -1,31 +1,31 @@
 abstract type Recurrence end
 abstract type LinearRecurrence <: Recurrence end
 
-struct CFiniteRecurrence{T} <: LinearRecurrence
-    func::T
-    arg::T
-    coeffs::Vector{T}
+struct CFiniteRecurrence{S,T} <: LinearRecurrence
+    func::S
+    arg::S
+    coeffs::Vector{<:T}
     inhom::T
 
-    function CFiniteRecurrence(func::T, arg::T, coeffs::Vector{T}, inhom::T = T(0)) where {T}
+    function CFiniteRecurrence(func::S, arg::S, coeffs::Vector{T}, inhom::T = zero(T)) where {S,T}
         # if any(has.(coeffs, arg))
         #     error("Not a C-finite recurrence.")
         # end
-        new{T}(func, arg, coeffs, inhom)
+        new{S,T}(func, arg, coeffs, inhom)
     end
 end
 
-struct HyperRecurrence{T} <: LinearRecurrence
-    func::T
-    arg::T
-    coeffs::Vector{T}
+struct HyperRecurrence{S,T} <: LinearRecurrence
+    func::S
+    arg::S
+    coeffs::Vector{<:T}
     inhom::T
 
-    function HyperRecurrence(func::T, arg::T, coeffs::Vector{T}, inhom::T = T(0)) where {T}
+    function HyperRecurrence(func::S, arg::S, coeffs::Vector{T}, inhom::T = zero(T)) where {S,T}
         # if any(has.(coeffs, arg))
         #     error("Not a C-finite recurrence.")
         # end
-        new{T}(func, arg, coeffs, inhom)
+        new{S,T}(func, arg, coeffs, inhom)
     end
 end
 

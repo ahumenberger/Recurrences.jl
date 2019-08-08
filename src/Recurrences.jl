@@ -71,9 +71,6 @@ function pushexpr!(lrs::LinearRecSystem{S,T}, ex::Expr...) where {S,T}
             x = :($(unblock(l)) - $(unblock(r)))
         end
         entry, _ = LinearRecEntry(Var, APL, x)
-        @info "" entry.coeffs entry.inhom
-        @info "" entry isa LinearEntry{S,T}
-        # @info "" LinearEntry{S,T}(entry) lrs
         push!(lrs, entry)
     end
     lrs
@@ -101,7 +98,7 @@ end
 
 function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
     lhss, rhss = _parallel(split_assign(exprs)...)
-    @info "Splitted and parallel assignments" rhss lhss
+    @debug "Splitted and parallel assignments" rhss lhss
     _lrs_parallel(lhss, rhss, lc)
     # lrs = LinearRecSystem(Basic(lc), map(Basic, Base.unique(lhss)))
     # for (i,v) in enumerate(lhss)
@@ -140,7 +137,6 @@ end
 
 function _solve_parallel(lhss::AbstractVector{Symbol}, rhss::AbstractVector{RExpr}, lc::Symbol)
     lrs, remaining = _lrs_parallel(lhss, rhss, lc)
-    @info "" lrs
     cfs = solve(lrs)
     cfmap = Dict{Symbol, RExpr}(Symbol(string(x.func)) => convert(Expr, expression(x)) for x in cfs)
     _lhss, _rhss = remaining
@@ -157,7 +153,6 @@ function _solve_parallel(lhss::AbstractVector{Symbol}, rhss::AbstractVector{RExp
 end
 
 function lrs(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
-    @info "" exprs lc
     lrs = LinearRecSystem{Var,APL}(mkvar(lc))
     pushexpr!(lrs, exprs...)
 end

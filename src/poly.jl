@@ -36,7 +36,7 @@ end
 # Base.promote_op(transpose, ::Type{APL}...) = APL
 # Base.promote_op(transpose, ::Type{RPoly}...) = RPoly
 
-APL(x::Bool) = x ? one(APL) : zero(APL)
+# APL(x::Bool) = x ? one(APL) : zero(APL)
 
-LinearAlgebra.transpose(p::RationalPoly) = transpose(numerator(p)) / transpose(denominator(p))
-LinearAlgebra.adjoint(p::RationalPoly) = adjoint(numerator(p)) / adjoint(denominator(p))
+# LinearAlgebra.transpose(p::RationalPoly) = transpose(numerator(p)) / transpose(denominator(p))
+# LinearAlgebra.adjoint(p::RationalPoly) = adjoint(numerator(p)) / adjoint(denominator(p))
