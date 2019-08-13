@@ -59,7 +59,7 @@ end
 function pushexpr!(lrs::LinearRecSystem, ls::Vector{Expr}, rs::AbstractVector{RExpr})
     for (l, r) in zip(ls, rs)
         expr = :($l - $r)
-        entry, _ = LinearRecEntry(Basic, expr)
+        entry, _ = LinearRecEntry(Var, APL, expr)
         push!(lrs, entry)
     end
     lrs
@@ -118,7 +118,7 @@ function _lrs_parallel(lhss::AbstractVector{Symbol}, rhss::AbstractVector{RExpr}
     nonlinear = setdiff(eachindex(lhss), linear)
     rest = (view(lhss, nonlinear), view(rhss, nonlinear))
     _lhss, _rhss = view(lhss, linear), view(rhss, linear)
-    lrs = LinearRecSystem(Basic(lc), map(Basic, _lhss))
+    lrs = LinearRecSystem(mkvar(lc), map(mkvar, _lhss))
     for (i, rhs) in enumerate(_rhss)
         _rhss[i] = MacroTools.postwalk(x -> x isa Symbol && x in _lhss ? :($x($lc)) : x, rhs)
     end

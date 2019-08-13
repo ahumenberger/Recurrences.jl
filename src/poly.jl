@@ -27,7 +27,7 @@ end
 function _islinear(x::RExpr, vars::AbstractVector{Symbol})
     vs = map(mkvar, vars)
     p = mkpoly(x)
-    all(MultivariatePolynomials.degree(m, v) < 2 for v in vs for m in terms(p))
+    all(MultivariatePolynomials.degree(m, v) < 2 for v in vs for m in MultivariatePolynomials.terms(p))
 end
 
 # Base.zeros(::Type{APL}, dims::Base.DimOrInd...) = zeros(APL, dims...)

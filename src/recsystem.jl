@@ -5,7 +5,7 @@ struct LinearRecSystem{S,T}
     inhom::Vector{<:T}
 end
 
-LinearRecSystem{S,T}(arg::S, funcs::Vector{S}=S[]) where {S,T} = LinearRecSystem{S,T}(funcs, arg, Matrix{APL}[], APL[])
+LinearRecSystem(arg::S, funcs::Vector{S}=S[]) where {S} = LinearRecSystem{S,APL}(funcs, arg, Matrix{APL}[], APL[])
 LinearRecSystem(funcs::Vector{S}, arg::S, mat::Vector{Matrix{T}}) where {S,T} = LinearRecSystem{S,T}(funcs, arg, mat, zeros(T, size(mat[1], 1)))
 
 order(lrs::LinearRecSystem) = length(lrs.mat) - 1
@@ -116,6 +116,7 @@ end
 
 function blockdiagonal(m::Matrix{T}) where {T}
     @assert size(m, 1) == size(m, 2) "Matrix is not square."
+    @info "" m
     s = size(m, 1)
     row = zeros(T, s)
     blocks = Matrix{T}[]
@@ -131,14 +132,15 @@ function blockdiagonal(m::Matrix{T}) where {T}
     if i0 <= s
         push!(blocks, m[i0:s, i0:s])        
     end
-    @assert cat(blocks..., dims=(1,2)) == m "Matrix not in block diagonal form."
+    @info "" blocks
+    # @assert cat(blocks..., dims=(1,2)) == m "Matrix not in block diagonal form."
     blocks
 end
 
 function decouple(lrs::LinearRecSystem)
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
-
+    @info "" lrs
     σ = x -> MultivariatePolynomials.subs(x, lrs.arg => lrs.arg-1)
     σinv = x -> MultivariatePolynomials.subs(x, lrs.arg => lrs.arg+1)
     δ = x -> σ(x) - x
@@ -146,9 +148,9 @@ function decouple(lrs::LinearRecSystem)
     C, A = rational_form(copy(M), σ, σinv, δ)
     # C = simplify.(C)
     # A = simplify.(A)
-
+    # @info "" factorize(A)
     @debug "Zürcher" input=-lrs.mat[1] C A M (inv(A) * M * σ.(A) + inv(A) * δ.(A))
-    @assert inv(A) * M * σ.(A) + inv(A) * δ.(A) == C "Zürcher wrong"
+    # @assert inv(A) * M * σ.(A) + inv(A) * δ.(A) == C "Zürcher wrong"
 
     σinv.(C), A
 end
@@ -160,7 +162,7 @@ function solveblock(C::Matrix{T}, initvec::Vector{T}, arg::S) where {S,T}
     cp1 = sum(polynomial([c * p for p in pascal(i-1, alt = true)], [v^j for j in 0:i-1]) for (i, c) in enumerate(C[end,:]))
     cp2 = polynomial(pascal(csize, alt = true), [v^j for j in 0:csize])
     coeffpoly = cp1 + cp2
-    coeffs = coefficients(coeffpoly)
+    coeffs = MultivariatePolynomials.coefficients(coeffpoly)
     @debug "Coefficients for recurrence" coeffs
     if any(nterms(numerator(c)) > 1 || nterms(numerator(c)) > 1 for c in coeffs)
         @error "Only C-finite recurrences supported by now"

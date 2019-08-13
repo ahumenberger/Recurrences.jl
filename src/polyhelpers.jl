@@ -52,9 +52,9 @@ Base.copysign(s::SymPy.Sym, i::Int64) = copysign(s, SymPy.Sym(i))
 Base.copysign(s::SymPy.Sym, f::Float64) = copysign(s, SymPy.Sym(f))
 
 function fallingfactorial(x, j)
-    result = Poly([1], string(x))
+    result = x
     for i in 0:j - 1
-        result *= Poly([-i, 1], string(x))
+        result *= x-i
     end
     return result
 end
@@ -76,7 +76,7 @@ function factors(expr::Sym)
     # c, list = factor_list(expr)
     # factor_list returns a Sym object instead of a tuple, does not seem to be right!
     # TOOO: add multiplicities
-    c, list = factor_list(expr).x
+    c, list = sympy.factor_list(expr)
     result = [x for (x,y) in list]
     # if c != 1
     #     push!(result, c)
@@ -96,6 +96,15 @@ function factors(p::Poly{T}) where {T}
     facts = convert(Vector{T}, facts)
     arg = convert(T, p.var)
     Poly.(coeffs.(facts, arg), p.var)
+end
+
+function factors(p::RPoly)
+    sympoly = sympify(string(p))
+    facts = factors(sympoly)
+    facts = convert(Vector{Basic}, facts)
+    v = MultivariatePolynomials.variables(p)[1]
+    arg = Basic(string(v))
+    polynomial.(coeffs.(facts, arg), [v^i for i in 0:length(facts)-1])
 end
 
 lc(p::Poly) = coeffs(p)[end]
