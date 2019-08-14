@@ -109,7 +109,9 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[MultivariatePolynomials]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "8f1c7df2386a553532095a42028d03ad627a4437"
+git-tree-sha1 = "defb6d17c621881fb6dd33f0096f6ea169bef023"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaAlgebra/MultivariatePolynomials.jl.git"
 uuid = "102ac46a-7ee4-5c85-9060-abc95bfdeaa3"
 version = "0.3.1"
 
@@ -204,8 +206,6 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 [[SymEngine]]
 deps = ["BinaryProvider", "Compat", "Libdl", "RecipesBase", "SpecialFunctions"]
 git-tree-sha1 = "7476b2dcafea7d2171014c834a81ccaf59d62006"
-repo-rev = "master"
-repo-url = "https://github.com/symengine/SymEngine.jl"
 uuid = "123dc426-2d89-5057-bbad-38513e3affd8"
 version = "0.7.0"
 
@@ -220,9 +220,9 @@ deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[Tokenize]]
-git-tree-sha1 = "c8a8b00ae44a94950814ff77850470711a360225"
+git-tree-sha1 = "dfcdbbfb2d0370716c815cbd6f8a364efb6f42cf"
 uuid = "0796e94c-ce3b-5d07-9a54-7f471281c624"
-version = "0.5.5"
+version = "0.5.6"
 
 [[URIParser]]
 deps = ["Test", "Unicode"]
