@@ -17,9 +17,9 @@ version = "0.5.6"
 
 [[CSTParser]]
 deps = ["Tokenize"]
-git-tree-sha1 = "0ff80f68f55fcde2ed98d7b24d7abaf20727f3f8"
+git-tree-sha1 = "c69698c3d4a7255bc1b4bc2afc09f59db910243b"
 uuid = "00ebfdb7-1f24-5e51-bd34-a7502290713f"
-version = "0.6.1"
+version = "0.6.2"
 
 [[Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
@@ -53,9 +53,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[DynamicPolynomials]]
 deps = ["LinearAlgebra", "MultivariatePolynomials", "Pkg", "Reexport", "Test"]
-git-tree-sha1 = "73bb16dca284abf4aeb5e6055d1be00a9ccf1d20"
+git-tree-sha1 = "3a62d031f2ad15a68e4b4603bc85ebb1580438ca"
 uuid = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
-version = "0.3.1"
+version = "0.3.2"
 
 [[InteractiveUtils]]
 deps = ["Markdown"]
@@ -180,8 +180,6 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 [[SymEngine]]
 deps = ["BinaryProvider", "Compat", "Libdl", "RecipesBase", "SpecialFunctions"]
 git-tree-sha1 = "7476b2dcafea7d2171014c834a81ccaf59d62006"
-repo-rev = "master"
-repo-url = "https://github.com/symengine/SymEngine.jl"
 uuid = "123dc426-2d89-5057-bbad-38513e3affd8"
 version = "0.7.0"
 
@@ -196,9 +194,9 @@ deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[Tokenize]]
-git-tree-sha1 = "c8a8b00ae44a94950814ff77850470711a360225"
+git-tree-sha1 = "dfcdbbfb2d0370716c815cbd6f8a364efb6f42cf"
 uuid = "0796e94c-ce3b-5d07-9a54-7f471281c624"
-version = "0.5.5"
+version = "0.5.6"
 
 [[URIParser]]
 deps = ["Test", "Unicode"]
