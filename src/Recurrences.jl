@@ -38,6 +38,7 @@ function __init__()
 end
 
 replace_post(ex, s, s′) = MacroTools.postwalk(x -> x == s ? s′ : x, ex)
+replace_post(ex, dict) = MacroTools.postwalk(x -> x in keys(dict) ? dict[x] : x, ex)
 gensym_unhashed(s::Symbol) = Symbol(replace(string(gensym(s)), "#"=>""))
 
 function split_assign(xs::Vector{Expr})
@@ -73,22 +74,18 @@ end
 
 function _parallel(lhss::Vector{Symbol}, rhss::Vector{RExpr})
     del = Int[]
+    dict = collect(zip(lhss, rhss))
     for (i,v) in enumerate(lhss)
-        j = findnext(x->x==v, lhss, i+1)
-        l = j === nothing ? lastindex(lhss) : j
-        for k in i+1:l
-            rhss[k] = replace_post(rhss[k], v, rhss[i])
-        end
-        if j != nothing
-            push!(del, i)
+        rhss[i] = replace_post(rhss[i], Dict(dict[1:i-1]))
+    end
+    _lhss, _rhss = Symbol[], RExpr[]
+    for (l, r) in reverse(collect(zip(lhss, rhss)))
+        if l ∉ _lhss
+            pushfirst!(_lhss, l)
+            pushfirst!(_rhss, r)
         end
     end
-    
-    if !isempty(del)
-        deleteat!(lhss, Tuple(del))
-        deleteat!(rhss, Tuple(del))
-    end
-    lhss, rhss
+    _lhss, _rhss
 end
 
 function lrs_sequential(exprs::Vector{Expr}, lc::Symbol = gensym_unhashed(:n))
