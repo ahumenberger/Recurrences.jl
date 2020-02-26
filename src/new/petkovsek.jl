@@ -108,7 +108,7 @@ function alghyper(plist::Vector{T}, n) where {T}
             end
         end
     end
-    return solutions
+    return unique(solutions)
 end
 
 # function commonfactors(p::Poly{T}, q::Poly{T}) where {T}
