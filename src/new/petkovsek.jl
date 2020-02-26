@@ -6,6 +6,7 @@ fallfactorial(n, j) = j == 0 ? 1 : prod(n - i for i in 0:j-1)
 
 function algpoly(plist::Vector{T}, f, n) where {T}
     @debug "Algorithm [algpoly]" plist f
+    R = parent(n)
     # Construct polynomials qj that arise from treating the shift operator
 	# as the difference operator plus the identity operator.
     r = length(plist) - 1
@@ -13,8 +14,8 @@ function algpoly(plist::Vector{T}, f, n) where {T}
 
     # Find all candidates for the degree bound on output polynomial.
     b = maximum([(Nemo.degree(q) - (j - 1)) for (j, q) in enumerate(qlist)])
-    alpha = sum(lc(q)*fallfactorial(n, j-1) for (j, q) in enumerate(qlist) if Nemo.degree(q) - (j-1) == b)
-    roots = [-Nemo.coeff(f, 0) for (f, _) in Nemo.factor(alpha)]
+    alpha = sum(lead(q)*fallfactorial(n, j-1) for (j, q) in enumerate(qlist) if Nemo.degree(q) - (j-1) == b)
+    roots = [-Nemo.coeff(f, 0) for (f, _) in Nemo.factor(R(alpha))]
     roots = [r for r in roots if r >= 0 && isone(denominator(r))]
 
     first = Nemo.degree(f) - b
@@ -49,22 +50,10 @@ function algpoly(plist::Vector{T}, f, n) where {T}
     return solutions
 end
 
-function factors(p::fmpq_poly)
-    fac = Nemo.factor(p)
-    unit(fac), first.(collect(fac))
-end
-
-factor_list(p::fmpq_poly) = factors(p)[2]
-lc(p::fmpq_poly) = factors(p)[1]
-
 function monic_factors(p::PolyElem)
     fs = [f for (f, m) in Nemo.factor(p) for i in 1:m]
     fs = [one(p); fs]
     unique(prod(s) for s in Combinatorics.powerset(fs, 1))
-end
-
-function _roots(p::PolyElem)
-    [-Nemo.coeff(f, 0) for (f, _) in Nemo.factor(p)]
 end
 
 _prod(itr) = reduce(*, itr, init=1)
@@ -88,7 +77,7 @@ function alghyper(plist::Vector{T}, n) where {T}
             m = maximum(Nemo.degree(p) for p in ps)
             alphas = map(x->Nemo.coeff(x, m), ps)
             zpoly = sum(c*n^(i-1) for (i, c) in enumerate(alphas))
-            zs = _roots(zpoly)
+            zs = roots(zpoly)
             zs = [z for z in zs if !iszero(z)]
             @debug "Nonzero roots" alphas zpoly zs
             for z in zs
@@ -181,32 +170,3 @@ function petkovsek(coeffs::Vector{T}, arg::S) where {S,T}
     @info "Petkovsek - alghyper" hyper
     hgterms.(hyper)
 end
-
-(R::FmpqPolyRing)(s::String) = R(Meta.parse(s))
-
-function (R::FmpqPolyRing)(p::Expr)
-    v = gen(R)
-    vs = [:($(Symbol(string(v))) = $v)]
-    q = quote
-        let $(vs...)
-            $(p)
-        end
-    end
-    eval(q)
-end
-
-# function hyper()
-
-# end # module
-
-# using SymPy
-# using Petkovsek
-
-# @syms n y
-
-# @syms n; Recurrences.petkovsek([2*n*(n+1), -(n^2 +3*n-2), n-1], n)
-
-# # algpoly([3, -n, n-1], 0*n, n)
-# # algpoly([n-1, -n, 3], 0*n, n)
-# println("alghyper: ", [tohg(sol, n) for sol in alghyper([2*n*(n+1), -(n^2 +3*n-2), n-1], n)])
-# println("algpoly: ", algpoly([n*(n + 1), -1*n^2 - 3*n + 2, 2*n - 2], 0*n,n))

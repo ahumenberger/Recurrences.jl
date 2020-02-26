@@ -47,21 +47,13 @@ zero(c::CFiniteClosedForm{T}) where {T} = c * 0
 
 # ------------------------------------------------------------------------------
 
-function roots(p::PolyElem)
-    R = parent(p)
-    S = base_ring(p)
-    x = R(Nemo.var(R))
-    f = Nemo.factor(p)
-    [(Nemo.coeff(g-x, 0), m) for (g, m) in f]
-end
-
 Base.:(/)(p::FracElem, q::FracElem) = p // q
 
 function closedform(rec::CFiniteRecurrence{T}) where {T}
 
     S,  = PolynomialRing(base_ring(rec.arg), "x")
     cpoly = S(coeffs(rec))
-    rts = roots(cpoly)
+    rts = mroots(cpoly)
     @info "" rts[1][1] |> typeof
 
     # TODO: allow inhomogeneous recurrences?

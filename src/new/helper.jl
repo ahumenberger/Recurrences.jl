@@ -36,3 +36,5 @@ function (R::PolyRing)(x::Number)
     base_ring(R)(x)
 end
 
+mroots(p::PolyElem) = [-(Nemo.coeff(f, 0), m) for (f, m) in Nemo.factor(p)]
+roots(p::PolyElem) = [-Nemo.coeff(f, 0) for (f, _) in Nemo.factor(p)]
