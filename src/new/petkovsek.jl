@@ -180,7 +180,7 @@ function petkovsek(coeffs::Vector{T}, arg::S) where {S,T}
     @info "Petkovsek - input" coeffs
     ds = map(denominator, coeffs)
     p = reduce(lcm, ds)
-    polys = reverse(numerator(c * p) for c in coeffs)
+    polys = reverse([numerator(c * p) for c in coeffs])
     @info "" polys ds p
     hyper = alghyper(polys, arg)
     @info "Petkovsek - alghyper" hyper
