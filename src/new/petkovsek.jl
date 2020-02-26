@@ -68,7 +68,7 @@ function monic_factors(p::PolyElem)
     unique(prod(s) for s in Combinatorics.powerset(fs, 1))
 end
 
-function roots(p::PolyElem)
+function _roots(p::PolyElem)
     [-Nemo.coeff(f, 0) for (f, _) in Nemo.factor(p)]
 end
 
@@ -94,7 +94,7 @@ function alghyper(plist::Vector{T}, n) where {T}
             alphas = map(x->Nemo.coeff(x, m), ps)
             @info "" alphas
             zpoly = sum(c*n^(i-1) for (i, c) in enumerate(alphas))
-            zs = roots(zpoly)
+            zs = _roots(zpoly)
             zs = [z for z in zs if !iszero(z)]
             @info "Roots" zpoly zs
             for z in zs
