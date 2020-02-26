@@ -5,7 +5,7 @@ using Combinatorics
 fallfactorial(n, j) = j == 0 ? 1 : prod(n - i for i in 0:j-1)
 
 function algpoly(plist::Vector{T}, f, n) where {T}
-    @info "Algorithm [algpoly]" plist
+    @debug "Algorithm [algpoly]" plist f
     # Construct polynomials qj that arise from treating the shift operator
 	# as the difference operator plus the identity operator.
     r = length(plist) - 1
@@ -21,21 +21,19 @@ function algpoly(plist::Vector{T}, f, n) where {T}
     second = -b - 1
     third = maximum([roots; 0])
     d = convert(Int, numerator(max(first, second, third)))
-    @info "Degree bound" first second third
+    @debug "Degree bound" first second third
 
     # Use method of undetermined coefficients to find the output polynomial.
     R, varlist = PolynomialRing(base_ring(n), ["x$i" for i in 1:d+1])
     arg = change_base_ring(R, n)
     genpoly = sum(v*arg^(i-1) for (i,v) in enumerate(varlist))
     _plist = map(x->change_base_ring(R, x), plist)
-    @info "Generic polynomial" genpoly d+1 varlist
+    @debug "Generic polynomial" genpoly varlist
 
     poly = sum(genpoly(arg+(i - 1)) * p for (i, p) in enumerate(_plist))
     poly -= change_base_ring(R, f)
-    @info "Poly" poly f
-    if iszero(poly)
-        return [parent(f)(1)]
-    end
+    @debug "Poly" poly
+
     coefficients = [Nemo.coeff(poly, i) for i in 0:length(poly)]
     A = [Nemo.coeff(cf, v) for cf in coefficients, v in varlist]
     A = MatrixSpace(base_ring(R), size(A)...)(A)
@@ -47,7 +45,7 @@ function algpoly(plist::Vector{T}, f, n) where {T}
         s = sum(Nemo.coeff(genpoly, i)(col...)*n^i for i in 0:length(genpoly))
         push!(solutions, s)
     end
-    @debug "Solution for coefficients" solutions
+    @debug "Algorithm [algpoly] return" solutions
     return solutions
 end
 
@@ -107,6 +105,7 @@ function alghyper(plist::Vector{T}, n) where {T}
             end
         end
     end
+    @debug "Algorithm [alghyper] return" unique(solutions)
     return unique(solutions)
 end
 
