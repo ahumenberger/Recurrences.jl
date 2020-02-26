@@ -51,8 +51,14 @@ function algpoly(plist::Vector{T}, f, n) where {T}
 end
 
 function monic_factors(p::PolyElem)
-    fs = [f for (f, m) in Nemo.factor(p) for i in 1:m]
-    fs = [one(p); fs]
+    fac = Nemo.factor(p)
+    fs = [(lead(f), div(f, parent(p)(lead(f)))) for (f, m) in fac for i in 1:m]
+    unit(fac)*prod(map(first, fs)), map(last, fs)
+end
+
+function all_monic_factors(p::PolyElem)
+    unit, fs = monic_factors(p)
+    fs = [one(p); unit; fs]
     unique(prod(s) for s in Combinatorics.powerset(fs, 1))
 end
 
@@ -62,8 +68,8 @@ function alghyper(plist::Vector{T}, n) where {T}
     @debug "Algorithm [alghyper]" plist
     d = length(plist)
 
-    alist = monic_factors(plist[1](n))
-    blist = monic_factors(plist[end](n-(d-2)))
+    alist = all_monic_factors(plist[1](n))
+    blist = all_monic_factors(plist[end](n-(d-2)))
 
     @debug "All monic factors" alist blist
 
@@ -138,27 +144,12 @@ end
 #     rfunc * rf, ffact
 # end
 
-# function hgterms(s::RationalFunction)
-#     c, num, den = monic(s)
-#     @debug "" c num den
-#     # fnum, fden = factors(num), factors(den)
-#     if num != 1 && den != 1
-#         # TODO: is this shift really the correct thing to do?!
-#         proots = keys(mroots(num)) |> collect
-#         qroots = keys(mroots(den)) |> collect
-#         pqroots = filter(x -> isinteger(x), [proots; qroots])
-#         @debug "" pqroots
-#         sh = isempty(pqroots) ? 0 : minimum(pqroots)
-#         sh = sh < 0 ? -sh : 0
-#         num, den = shift(num, sh), shift(den, sh)
-
-#         rfunc, ffact = commonfactors(num, den)
-#         rfunc, ffact = shift(rfunc, -sh), Pair(shift(ffact[1], -sh), shift(ffact[2], -sh))
-
-#         return c, rfunc, ffact
-#     end
-#     c, 1, Pair(FallingFactorial(num), FallingFactorial(den))
-# end
+function hgterms(s::FracElem)
+    num, den = numerator(s), denominator(s)
+    c1, fs1 = monic_factors(num)
+    c2, fs2 = monic_factors(den)
+    c1//c2, fs1, fs2
+end
 
 function petkovsek(coeffs::Vector{T}, arg::S) where {S,T}
     @info "Petkovsek - input" coeffs
