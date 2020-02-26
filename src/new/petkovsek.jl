@@ -72,31 +72,30 @@ end
 _prod(itr) = reduce(*, itr, init=1)
 
 function alghyper(plist::Vector{T}, n) where {T}
-    @info "Algorithm [alghyper]" plist
+    @debug "Algorithm [alghyper]" plist
     d = length(plist)
 
     alist = monic_factors(plist[1](n))
     blist = monic_factors(plist[end](n-(d-2)))
 
-    @info "Monic factors" alist blist
+    @debug "All monic factors" alist blist
 
-    solutions = []
+    solutions = FracElem{typeof(n)}[]
     for a in alist
         for b in blist
-            @info "Monic factors" a b
+            @debug "Monic factors" a b
 
             ps = [plist[i+1] * _prod(a(n+j) for j in 0:i-1) * _prod(b(n+j) for j in i:d-1) for i in 0:d-1]
 
             m = maximum(Nemo.degree(p) for p in ps)
             alphas = map(x->Nemo.coeff(x, m), ps)
-            @info "" alphas
             zpoly = sum(c*n^(i-1) for (i, c) in enumerate(alphas))
             zs = _roots(zpoly)
             zs = [z for z in zs if !iszero(z)]
-            @info "Roots" zpoly zs
+            @debug "Nonzero roots" alphas zpoly zs
             for z in zs
                 _ps = [z^(i-1)*p for (i, p) in enumerate(ps)]
-                @info "" _ps
+                @debug "Coefficients auxiliary recurrence" _ps
                 
                 _sols = algpoly(_ps, zero(n), n)
                 @debug "Solutions of algpoly" _sols
