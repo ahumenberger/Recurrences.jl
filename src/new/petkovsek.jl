@@ -24,32 +24,29 @@ function algpoly(plist::Vector{T}, f, n) where {T}
     @info "Degree bound" first second third
 
     # Use method of undetermined coefficients to find the output polynomial.
-    R, varlist = PolynomialRing(QQ, ["x$i" for i in 1:d+1])
-    F = FractionField(R)
-    arg = change_base_ring(F, n)
+    R, varlist = PolynomialRing(base_ring(n), ["x$i" for i in 1:d+1])
+    arg = change_base_ring(R, n)
     genpoly = sum(v*arg^(i-1) for (i,v) in enumerate(varlist))
-    _plist = map(x->change_base_ring(F, x), plist)
+    _plist = map(x->change_base_ring(R, x), plist)
     @info "Generic polynomial" genpoly d+1 varlist
 
     poly = sum(genpoly(arg+(i - 1)) * p for (i, p) in enumerate(_plist))
-    poly -= change_base_ring(F, f)
+    poly -= change_base_ring(R, f)
     @info "Poly" poly f
     if iszero(poly)
         return [parent(f)(1)]
     end
-    coefficients = coeffs(poly)
-    # TODO: check that monomials are of degree 1
-    A = [coeff(cf, v) for cf in coefficients, v in varlist]
-    solutions = solve(A, varlist)
-    # missing = setdiff(varlist, keys(sol))
-    # p = Poly([subs(c, sol) for c in coeffs(genpoly)], string(n))
-    # solutions = Poly{T}[]
-    # for v in missing
-    #     c = coeff(p, v)
-    #     if !iszero(c)
-    #         push!(solutions, c)
-    #     end
-    # end
+    coefficients = [Nemo.coeff(poly, i) for i in 0:length(poly)]
+    A = [Nemo.coeff(cf, v) for cf in coefficients, v in varlist]
+    A = MatrixSpace(base_ring(R), size(A)...)(A)
+    rank, ker = kernel(A)
+    solutions = typeof(n)[]
+    S = base_ring(n)
+    for j in 1:rank
+        col = ker[:, j]
+        s = sum(Nemo.coeff(genpoly, i)(col...)*n^i for i in 0:length(genpoly))
+        push!(solutions, s)
+    end
     @debug "Solution for coefficients" solutions
     return solutions
 end
