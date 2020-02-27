@@ -38,3 +38,5 @@ end
 
 mroots(p::PolyElem) = [-(Nemo.coeff(f, 0)/lead(f), m) for (f, m) in Nemo.factor(p)]
 roots(p::PolyElem) = [-Nemo.coeff(f, 0)/lead(f) for (f, _) in Nemo.factor(p)]
+
+fallfactorial(n, j) = j == 0 ? 1 : prod(n - i for i in 0:j-1)
