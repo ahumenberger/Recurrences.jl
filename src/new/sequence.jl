@@ -67,6 +67,9 @@ base_ring(a::Seq) = base_ring(parent(a))
 
 parent(a::Seq) = a.parent
 
+isdomain_type(::Type{Seq}) = false
+isexact_type(::Type{Seq}) = true
+
 Base.iszero(a::Seq) = iszero(length(a.terms))
 
 Base.one(R::SeqRing) = R(1)
@@ -74,6 +77,26 @@ Base.zero(R::SeqRing) = R()
 
 Base.one(s::Seq) = one(parent(s))
 Base.zero(s::Seq) = zero(parent(s))
+
+function Base.hash(a::Seq, h::UInt)
+    b = 0x53dd43cd511044d1%UInt
+    for t in a.terms
+        b = xor(b, xor(hash(t, h), h))
+        b = (b << 1) | (b >> (sizeof(Int)*8 - 1))
+    end
+    return b
+end
+
+function Base.isequal(x::Seq{T}, y::Seq{T}) where {T <: FieldElem}
+    parent(x) != parent(y) && return false
+    length(x.terms) != length(y.terms) && return false
+    for i in 1:length(x.terms)
+       x.terms[i] != y.terms[i] && return false
+    end
+    return true
+end
+
+Base.:(==)(x::Seq{T}, y::Seq{T}) where {T <: FieldElem} = isequal(x, y)
 
 # ------------------------------------------------------------------------------
 

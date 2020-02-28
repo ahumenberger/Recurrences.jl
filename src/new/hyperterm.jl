@@ -43,6 +43,24 @@ end
 
 Base.isone(a::HyperTerm) = isone(a.coeff) && isone(a.geom) && isone(a.fact)
 Base.iszero(a::HyperTerm) = iszero(a.coeff)
+Base.one(a::HyperTerm{T}) where T <: FieldElem = HyperTerm{T}(one(a.coeff))
+Base.zero(a::HyperTerm{T}) where T <: FieldElem = HyperTerm{T}(zero(a.coeff))
+
+function Base.hash(a::HyperTerm, h::UInt)
+    b = 0x53dd43cd511044d1%UInt
+    for t in (a.coeff, a.geom, a.fact, a.power)
+        b = xor(b, xor(hash(t, h), h))
+        b = (b << 1) | (b >> (sizeof(Int)*8 - 1))
+    end
+    return b
+end
+
+function Base.isequal(a::HyperTerm, b::HyperTerm) where T <: FieldElem
+    x, y = normalise(a), normalise(b)
+    x.coeff == y.coeff && x.geom == y.geom && x.fact == y.fact && x.power == y.power
+end
+
+Base.:(==)(x::HyperTerm, y::HyperTerm) = isequal(x, y)
 
 function Base.show(io::IO, a::HyperTerm)
     if iszero(a)
