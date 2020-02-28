@@ -102,17 +102,20 @@ Base.:-(a::HyperTerm{T}) where T <: FieldElem = HyperTerm{T}(-a.coeff, deepcopy(
 function Base.:+(f::HyperTerm{T}, g::HyperTerm{T}) where T <: FieldElem
     a, b = normalise(f), normalise(g)
     !issummable(a, b) && error("Cannod the sum of $f and $g")
+    iszero(a.coeff+b.coeff) && return zero(f)
     HyperTerm{T}(a.coeff+b.coeff, deepcopy(a.geom), deepcopy(a.fact), deepcopy(a.power))
 end
 
 function Base.:-(f::HyperTerm{T}, g::HyperTerm{T}) where T <: FieldElem
     a, b = normalise(f), normalise(g)
     !issummable(a, b) && error("Cannod the sum of $f and $g")
+    iszero(a.coeff-b.coeff) && return zero(f)
     HyperTerm{T}(a.coeff-b.coeff, deepcopy(a.geom), deepcopy(a.fact), deepcopy(a.power))
 end
 
 function Base.:*(f::HyperTerm{T}, g::HyperTerm{T}) where T <: FieldElem
     a, b = normalise(f), normalise(g)
+    iszero(a.coeff*b.coeff) && return zero(f)
     HyperTerm{T}(a.coeff*b.coeff, a.geom*b.geom, a.fact*b.fact, deepcopy(a.power))
 end
 
@@ -124,10 +127,12 @@ end
 # ------------------------------------------------------------------------------
 
 function (a::HyperTerm{T})(b::Integer) where T <: FieldElem
+    @assert denominator(a.power(b)) == 1
+    c = numerator(a.power(b))
     z = a.coeff(b)
-    z *= a.geom^b
+    z *= a.geom^c
     if !isone(a.fact)
-        z *= fallfactorial(a.fact(b), b)
+        z *= fallfactorial(a.fact(b), c)
     end
     return z
 end

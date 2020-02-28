@@ -199,7 +199,10 @@ function Base.:+(f::Seq{T}, g::Seq{T}) where T <: FieldElem
         else
             terms[idx] += t
         end
+
     end
+    filter!(!iszero, terms)
+    isempty(terms) && return zero(f)
     z = Seq{T}(terms)
     z.parent = f.parent
     return z
@@ -216,6 +219,8 @@ function Base.:-(f::Seq{T}, g::Seq{T}) where T <: FieldElem
             terms[idx] -= t
         end
     end
+    filter!(!iszero, terms)
+    isempty(terms) && return zero(f)
     z = Seq{T}(terms)
     z.parent = f.parent
     return z
