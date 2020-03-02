@@ -104,53 +104,6 @@ function alghyper(plist::Vector{T}, n; all_solutions::Bool=false) where {T}
     return unique(solutions)
 end
 
-# function commonfactors(p::Poly{T}, q::Poly{T}) where {T}
-#     if p == 1 || q == 1
-#         return Poly(one(T), p.var) // 1, Pair(FallingFactorial(p), FallingFactorial(q))
-#     end
-#     k = variables(T)
-#     res = resultant(shift(p, k), q)
-#     roots = keys(mroots(res)) |> collect
-#     filter!(x -> isinteger(x), roots)
-#     @debug "Integer roots of resultant" roots
-#     if isempty(roots)
-#         return Poly(one(T), p.var) // 1, Pair(FallingFactorial(p), FallingFactorial(q))
-#     end
-
-#     r = convert(Int64, roots[1])
-#     g = gcd(shift(p, r), q)
-#     @debug "GCD" g shift(p, r) q
-#     if r < 0
-#         @debug "" [polyval(g, i) for i in 1:-r]
-#         @debug "" [shift(g, i) for i in 1:-r]
-#         u = prod(polyval(g, i) for i in 1:-r)
-#         v = prod(shift(g, i) for i in 1:-r)
-#         rf = v // u 
-#     else
-#         @debug "" [polyval(g, -i+1) for i in 1:r]
-#         @debug "" [shift(g, -i+1) for i in 1:r]
-#         u = prod(polyval(g, -i+1) for i in 1:r)
-#         v = prod(shift(g, -i+1) for i in 1:r)
-#         rf = u // v
-#     end
-#     @debug "" u v rf
-
-#     s, sr = divrem(p, shift(g, -r))
-#     t, tr = divrem(q, g)
-#     if !iszero(sr) || !iszero(tr)
-#         @error "Remainder not zero (should not happen) - got $((sr, tr))"
-#     end
-#     rfunc, ffact = commonfactors(s, t)
-#     rfunc * rf, ffact
-# end
-
-function hgterms(s::FracElem)
-    num, den = numerator(s), denominator(s)
-    c1, fs1 = monic_factors(num)
-    c2, fs2 = monic_factors(den)
-    c1//c2, fs1, fs2
-end
-
 function gosper(t::Seq{T}, arg) where {T <: FieldElem}
     @debug "[Gosper]" t arg
     r = div(t(arg+1), t(arg))
