@@ -144,11 +144,24 @@ isrational(a::HyperTerm{T}) where T <: FieldElem = isone(a.geom) && isone(a.fact
 
 coeff(a::HyperTerm{T}) where T <: FieldElem = a.coeff
 
+function change_coeff_field(F::Field, a::HyperTerm{T}) where T <: FieldElem
+    # @info "" change_base_ring(F, a.coeff)
+    # R = change_base_ring(F, base_ring(a.coeff))
+
+    HyperTerm{elem_type(F)}(
+        change_base_ring(F, a.coeff),
+        F(a.geom),
+        change_base_ring(F, a.fact),
+        change_base_ring(F, a.power)
+    )
+end
+
+
 # ------------------------------------------------------------------------------
 
 function (a::HyperTerm{T})(b::Integer) where T <: FieldElem
     @assert denominator(a.power(b)) == 1
-    c = numerator(a.power(b))
+    c = convert(Int, numerator(a.power(b)))
     z = a.coeff(b)
     z *= a.geom^c
     if !isone(a.fact)

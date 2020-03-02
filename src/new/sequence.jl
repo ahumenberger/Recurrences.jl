@@ -24,6 +24,11 @@ end
 
 SequenceRing(R::PolyRing; cached::Bool = true) = SeqRing{elem_type(base_ring(R))}(R, cached)
 
+function change_coeff_field(F::Field, a::SeqRing{T}) where T <: FieldElem
+    R = parent(change_base_ring(F, zero(base_ring(a))))
+    SeqRing{elem_type(F)}(R)
+end
+
 # ------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------
@@ -295,5 +300,12 @@ function (a::Seq{T})(b::PolyElem{T}) where T <: FieldElem
     (Nemo.degree(b) != 1 || lead(b) != 1 || denominator(Nemo.coeff(b, 0)) != 1) && error("Argument must be of form n+c where c is an integer")
     z = Seq{T}([t(b) for t in a.terms])
     z.parent = a.parent
+    return z
+end
+
+function change_coeff_field(F::Field, a::Seq{T}) where T <: FieldElem
+    ts = [change_coeff_field(F, t) for t in terms(a)]
+    z = Seq{elem_type(F)}(ts)
+    z.parent = change_coeff_field(F, a.parent)
     return z
 end
