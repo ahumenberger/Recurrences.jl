@@ -284,19 +284,6 @@ function Base.:^(f::Seq{T}, i::Integer) where T <: FieldElem
     prod(f for _ in 1:i)
 end
 
-function Base.:*(f::Seq{T}, g::Seq{T}) where T <: FieldElem
-    check_parent(f, g)
-    seqs = Seq{T}[]
-    for a in f.terms
-        for b in g.terms
-            z = Seq{T}([a*b])
-            z.parent = f.parent
-            push!(seqs, z)
-        end
-    end
-    sum(seqs)
-end
-
 # ------------------------------------------------------------------------------
 
 function (a::Seq{T})(b::Integer) where T <: FieldElem
