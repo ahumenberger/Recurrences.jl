@@ -46,8 +46,10 @@ end
 
 function monic_factors(p::PolyElem)
     fac = Nemo.factor(p)
+    u = Nemo.coeff(parent(p)(unit(fac)), 0)
+    isempty(fac) && return u, [one(p)]
     fs = [(lead(f), div(f, parent(p)(lead(f)))) for (f, m) in fac for i in 1:m]
-    Nemo.coeff(parent(p)(unit(fac)), 0)*prod(map(first, fs)), map(last, fs)
+    return u*prod(map(first, fs)), map(last, fs)
 end
 
 function all_monic_factors(p::PolyElem)
