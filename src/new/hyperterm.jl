@@ -8,7 +8,7 @@ struct HyperTerm{T <: FieldElem}
         base_ring(a) != parent(b) && error("Polynomial rings do not match")
         c1, f1 = monic_factors(numerator(a))
         c2, f2 = monic_factors(denominator(a))
-        c = Nemo.coeff(c1, 0) // Nemo.coeff(c2, 0)
+        c = c1 // c2
         p = _prod(f1)//_prod(f2)
         new{T}(one(a), c, parent(a)(p), b)
     end
@@ -30,14 +30,15 @@ function normalise(a::HyperTerm{T}) where T <: FieldElem
     # TODO: make sure that a.power is of the form n+c where c is an integer
     d = convert(Int, numerator(Nemo.coeff(a.power - norm, 0)))
     c = a.coeff
-    if isnegative(d)
-        c *= 1//prod(a.fact + i for i in 1:abs(d))
-    else
-        c *= prod(a.fact - i for i in 0:d-1)
+    if !isone(a.fact)
+        if isnegative(d)
+            c *= 1//prod(a.fact(norm + i) for i in 1:abs(d))
+        else
+            c *= prod(a.fact(norm - i) for i in 0:d-1)
+        end
     end
+    f = isone(a.fact) ? a.fact : a.fact(a.power - (2*d))
     c *= a.geom^d
-    f = isone(a.fact) ? a.fact : a.fact - d
-
     HyperTerm{T}(c, a.geom, f, norm)
 end
 
@@ -123,6 +124,25 @@ function Base.:^(f::HyperTerm{T}, p::Integer) where T <: FieldElem
     a = normalise(f)
     HyperTerm{T}(a.coeff^p, a.geom^p, a.fact^p, deepcopy(a.power))
 end
+
+# ------------------------------------------------------------------------------
+
+function Base.gcd(f::HyperTerm{T}, g::HyperTerm{T}) where T <: FieldElem
+    a, b = normalise(f), normalise(g)
+    HyperTerm{T}(gcd(a.coeff, b.coeff), gcd(a.geom, b.geom), gcd(a.fact, b.fact), deepcopy(a.power))
+end
+
+function Base.div(f::HyperTerm{T}, g::HyperTerm{T}) where T <: FieldElem
+    iszero(g) && error("Division by zero")
+    a, b = normalise(f), normalise(g)
+    HyperTerm{T}(a.coeff/b.coeff, a.geom/b.geom, a.fact/b.fact, deepcopy(a.power))
+end
+
+# ------------------------------------------------------------------------------
+
+isrational(a::HyperTerm{T}) where T <: FieldElem = isone(a.geom) && isone(a.fact)
+
+coeff(a::HyperTerm{T}) where T <: FieldElem = a.coeff
 
 # ------------------------------------------------------------------------------
 

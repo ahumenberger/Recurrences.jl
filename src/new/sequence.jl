@@ -1,7 +1,7 @@
-mutable struct SeqRing{T <: PolyElem} <: Ring
-    base_ring::PolyRing
+mutable struct SeqRing{T <: FieldElem} <: Ring
+    base_ring::PolyRing{T}
  
-    function SeqRing{T}(R::PolyRing, cached::Bool = true) where T <: PolyElem
+    function SeqRing{T}(R::PolyRing, cached::Bool = true) where T <: FieldElem
        if cached && haskey(SequenceID, R)
           return SequenceID[R]::SeqRing{T}
        else
@@ -18,11 +18,11 @@ const SequenceID = Dict{Ring, Ring}()
 
 function SequenceRing(R::Ring, s::AbstractString; cached::Bool = true)
     S, v = PolynomialRing(R, s)
-    parent_obj = SeqRing{elem_type(S)}(S, cached)
+    parent_obj = SeqRing{elem_type(base_ring(S))}(S, cached)
     return parent_obj, v
 end
 
-SequenceRing(R::PolyRing; cached::Bool = true) = SeqRing{elem_type(R)}(R, cached)
+SequenceRing(R::PolyRing; cached::Bool = true) = SeqRing{elem_type(base_ring(R))}(R, cached)
 
 # ------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ SequenceRing(R::PolyRing; cached::Bool = true) = SeqRing{elem_type(R)}(R, cached
 
  mutable struct Seq{T <: FieldElem} <: RingElem
     terms::Vector{HyperTerm{T}}
-    parent::SeqRing{<:PolyElem{T}}
+    parent::SeqRing{T}
  
     Seq{T}() where T <: FieldElem = new{T}(Array{HyperTerm{T}}(undef, 0))
  
@@ -60,9 +60,9 @@ SequenceRing(R::PolyRing; cached::Bool = true) = SeqRing{elem_type(R)}(R, cached
 
 parent_type(::Type{Seq{T}}) where T <: FieldElem = SeqRing{T}
 
-elem_type(::Type{SeqRing{T}}) where T <: PolyElem = Seq{T}
+elem_type(::Type{SeqRing{T}}) where T <: FieldElem = Seq{T}
 
-base_ring(R::SeqRing{T}) where T <: PolyElem = R.base_ring::parent_type(T)
+base_ring(R::SeqRing{T}) where T <: FieldElem = R.base_ring
 base_ring(a::Seq) = base_ring(parent(a))
 
 parent(a::Seq) = a.parent
@@ -98,59 +98,67 @@ end
 
 Base.:(==)(x::Seq{T}, y::Seq{T}) where {T <: FieldElem} = isequal(x, y)
 
+canonical_unit(x::Seq) = x
+
 # ------------------------------------------------------------------------------
 
-function (a::SeqRing{T})() where {T <: PolyElem}
+function (a::SeqRing{T})() where {T <: FieldElem}
     S = elem_type(base_ring(base_ring(a)))
     z = Seq{S}()
     z.parent = a
     return z
 end
 
-function (a::SeqRing{T})(b::Union{Integer, Rational}) where {T <: PolyElem}
-    F = FractionField(base_ring(a))
-    return a(F(b))
-end
-
-function (a::SeqRing{T})(b::S) where {T <: PolyElem, S <: FieldElem}
-    parent(b) != base_ring(base_ring(a)) && error("Unable to coerce to sequence")
-    F = FractionField(base_ring(a))
-    return a(F(b))
-end
-
-function (a::SeqRing{T})(b::T) where {T <: PolyElem}
-    parent(b) != base_ring(a) && error("Unable to coerce to sequence")
-    F = FractionField(parent(b))
-    return a(F(b))
-end
-
-function (a::SeqRing{T})(b::FracElem{T}) where {T <: PolyElem}
-    base_ring(b) != base_ring(a) && error("Unable to coerce to sequence")
-    S = elem_type(base_ring(base_ring(a)))
-    t = HyperTerm{S}(b)
-    z = Seq{S}([t])
+function (a::SeqRing{T})(b::Seq{T}) where {T <: FieldElem}
+    z = Seq{T}(deepcopy(b.terms))
     z.parent = a
     return z
 end
 
-function (a::SeqRing{T})(b::Union{Integer, Rational}, c::T) where {T <: PolyElem}
+function (a::SeqRing{T})(b::Union{Integer, Rational}) where {T <: FieldElem}
+    F = FractionField(base_ring(a))
+    return a(F(b))
+end
+
+function (a::SeqRing{T})(b::T) where {T <: FieldElem}
+    parent(b) != base_ring(base_ring(a)) && error("Unable to coerce to sequence")
+    F = FractionField(base_ring(a))
+    return a(F(b))
+end
+
+function (a::SeqRing{T})(b::PolyElem{T}) where {T <: FieldElem}
+    parent(b) != base_ring(a) && error("Unable to coerce to sequence")
+    F = FractionField(parent(b))
+    return a(F(b))
+end
+
+function (a::SeqRing{T})(b::FracElem{<:PolyElem{T}}) where {T <: FieldElem}
+    base_ring(b) != base_ring(a) && error("Unable to coerce to sequence")
+    # S = elem_type(base_ring(base_ring(a)))
+    t = HyperTerm{T}(b)
+    z = Seq{T}([t])
+    z.parent = a
+    return z
+end
+
+function (a::SeqRing{T})(b::Union{Integer, Rational}, c::PolyElem{T}) where {T <: FieldElem}
     F = FractionField(base_ring(a))
     return a(F(b), c)
 end
 
-function (a::SeqRing{T})(b::S, c::T) where {T <: PolyElem, S <: FieldElem}
+function (a::SeqRing{T})(b::T, c::PolyElem{T}) where {T <: FieldElem}
     parent(b) != base_ring(base_ring(a)) && error("Unable to coerce to sequence")
     F = FractionField(base_ring(a))
     return a(F(b), c)
 end
 
-function (a::SeqRing{T})(b::T, c::T) where {T <: PolyElem}
+function (a::SeqRing{T})(b::PolyElem{T}, c::PolyElem{T}) where {T <: FieldElem}
     parent(b) != base_ring(a) && error("Unable to coerce to sequence")
     F = FractionField(parent(b))
     return a(F(b), c)
 end
 
-function (a::SeqRing{T})(b::FracElem{T}, c::T) where {T <: PolyElem}
+function (a::SeqRing{T})(b::FracElem{<:PolyElem{T}}, c::PolyElem{T}) where {T <: FieldElem}
     base_ring(b) != base_ring(a) && error("Unable to coerce to sequence")
     S = elem_type(base_ring(base_ring(a)))
     t = HyperTerm{S}(b, c)
@@ -160,6 +168,37 @@ function (a::SeqRing{T})(b::FracElem{T}, c::T) where {T <: PolyElem}
 end
 
 # ------------------------------------------------------------------------------
+
+terms(a::Seq{T}) where {T <: FieldElem} = a.terms
+nterms(a::Seq{T}) where {T <: FieldElem} = length(a.terms)
+
+coeffs(a::Seq{T}) where {T <: FieldElem} = iszero(a) ? [FractionField(base_ring(a))(0)] : map(coeff, terms(a))
+
+ishypergeometric(a::Seq{T}) where {T <: FieldElem} = nterms(a) == 1
+isrational(a::Seq{T}) where {T <: FieldElem} = iszero(a) || (ishypergeometric(a) && isrational(first(terms(a))))
+
+function Base.gcd(a::Seq{T}, b::Seq{T}) where {T <: FieldElem}
+    check_parent(a, b)
+    iszero(a) && iszero(b) && return one(a)
+    r = reduce(gcd, [a.terms; b.terms])
+    z = Seq{T}([r])
+    z.parent = a.parent
+    return z
+end
+
+function Base.div(a::Seq{}, b::Seq{T}) where {T <: FieldElem}
+    check_parent(a, b)
+    iszero(b) && error("Division by zero")
+    !ishypergeometric(b) && error("Division only for hypergeometric sequences supported")
+    z = Seq{T}([div(t, b.terms[1]) for t in a.terms])
+    z.parent = a.parent
+    return z
+end
+
+# ------------------------------------------------------------------------------
+
+needs_parentheses(::Seq) = true
+displayed_with_minus_in_front(::Seq) = false
 
 function Base.show(io::IO, a::Seq)
     if iszero(a)
@@ -191,7 +230,7 @@ end
 
 function Base.:+(f::Seq{T}, g::Seq{T}) where T <: FieldElem
     check_parent(f, g)
-    terms = f.terms
+    terms = deepcopy(f.terms)
     for t in g.terms
         idx = findfirst(x->(issummable(x, t)), terms)
         if idx === nothing
@@ -210,7 +249,7 @@ end
 
 function Base.:-(f::Seq{T}, g::Seq{T}) where T <: FieldElem
     check_parent(f, g)
-    terms = f.terms
+    terms = deepcopy(f.terms)
     for t in g.terms
         idx = findfirst(x->(issummable(x, t)), terms)
         if idx === nothing
@@ -243,6 +282,19 @@ function Base.:^(f::Seq{T}, i::Integer) where T <: FieldElem
     isnegative(i) && error("Only nonnegative powers allowed")
     iszero(i) && return one(f)
     prod(f for _ in 1:i)
+end
+
+function Base.:*(f::Seq{T}, g::Seq{T}) where T <: FieldElem
+    check_parent(f, g)
+    seqs = Seq{T}[]
+    for a in f.terms
+        for b in g.terms
+            z = Seq{T}([a*b])
+            z.parent = f.parent
+            push!(seqs, z)
+        end
+    end
+    sum(seqs)
 end
 
 # ------------------------------------------------------------------------------
