@@ -3,6 +3,7 @@ module Recurrences
 export @lrs
 
 using MacroTools: postwalk, @capture, unblock
+using Combinatorics
 import AbstractAlgebra: Ring, RingElement, Field, FieldElement
 import AbstractAlgebra: parent_type, elem_type, base_ring, parent, needs_parentheses, displayed_with_minus_in_front, canonical_unit
 using Nemo

@@ -1,7 +1,3 @@
-using Nemo
-using Hecke
-using Combinatorics
-
 function algpoly(plist::Vector{T}, f, n) where {T}
     @debug "Algorithm [algpoly]" plist f
     R = parent(n)
