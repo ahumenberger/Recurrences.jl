@@ -137,7 +137,6 @@ end
 
 function blockdiagonal(m::MatrixElem)
     @assert size(m, 1) == size(m, 2) "Matrix is not square."
-    @info "" m
     R = base_ring(m)
     s = size(m, 1)
     row = zeros(R, 1, s)
@@ -154,7 +153,6 @@ function blockdiagonal(m::MatrixElem)
     if i0 <= s
         push!(blocks, m[i0:s, i0:s])        
     end
-    @info "" blocks
     # @assert cat(blocks..., dims=(1,2)) == m "Matrix not in block diagonal form."
     blocks
 end
@@ -165,7 +163,7 @@ Nemo.AbstractAlgebra.change_base_ring(R::Nemo.AbstractAlgebra.Ring, x::FracElem)
 function decouple(lrs::LinearRecSystem)
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
-    @info "" lrs
+
     σ = x -> x(lrs.arg-1)
     σinv = x -> x(lrs.arg+1)
     δ = x -> σ(x) - x
@@ -256,7 +254,6 @@ function solve(lrs::LinearRecSystem)
         # M = _mat[1]
         J = identity_matrix(M)
         D = -M
-        @info "asfdasdfas" _A D M
         imat = zero_matrix(S, size(M, 1), 0)
         for i in 0:maxsize-1
             ivec = J * _initvec
