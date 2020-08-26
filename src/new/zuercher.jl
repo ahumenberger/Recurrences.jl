@@ -55,9 +55,9 @@ function transformP(T::MatrixElem, i0::Int, i::Int, k::Int, B::MatrixElem)
     return T, B
 end
 
-function transformR(T::Matrix{S}, i0::Int, B::Matrix{S}) where {S}
+function transformR(T::MatrixElem, i0::Int, B::MatrixElem)
     n = size(T, 1)
-    c = zeros(parent(first(T)), n)
+    c = zeros(base_ring(T), n)
     for i in i0:n
         c[i] = T[i,n]
     end
@@ -108,7 +108,7 @@ function transform_lemma2(T::MatrixElem, i0::Int, i::Int, l::Int, σ, σ_inv, δ
         T[j,i+1] *= σ(a) # D1
     end
     for j in i0:n
-        T[i+1,j] /= a # D2
+        T[i+1,j] //= a # D2
     end
     T[i+1,i+1] += δ(a) * inv(a) # D3
     for j in 1:n
@@ -169,7 +169,7 @@ function transform_lemma3(T::MatrixElem, i0::Int, i::Int, σ, δ, B::MatrixElem)
     return T, B
 end
 
-function transform_lemma4(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ, B::Matrix{S}) where {S}
+function transform_lemma4(T::MatrixElem, i0::Int, i::Int, k::Int, σ, σ_inv, δ, B::MatrixElem)
     n = size(T, 1)
     for l in i0:k
         a = σ_inv(-T[k,l])
@@ -215,7 +215,7 @@ function transform_lemma4(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
     return T, B
 end
 
-function transform_lemma5(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ, B::Matrix{S}) where {S}
+function transform_lemma5(T::MatrixElem, i0::Int, i::Int, k::Int, σ, σ_inv, δ, B::MatrixElem)
     n = size(T, 1)
     T, B = transformP(T, i0, k, n, B)
 
@@ -225,9 +225,9 @@ function transform_lemma5(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
     end
     T[n,i0] = 1 # D2
     for j in i+1:n
-        T[n,j] /= a
+        T[n,j] //= a
     end
-    T[n,n] += δ(a) / a # D3
+    T[n,n] += δ(a) // a # D3
     for j in 1:n
     # for j in i0:n
         B[j,n] *= a # basis change
