@@ -67,9 +67,12 @@ end
 function entries(ex::Expr...)
     _entries = []
     _args = []
+    _syms = Symbol[]
     for x in ex
         if @capture(x, l_ = r_)
             x = :($(unblock(l)) - $(unblock(r)))
+            @assert @capture(l, v_(a_))
+            push!(_syms, v)
         end
         entry, arg = LinearRecEntry(x)
         push!(_entries, entry)
@@ -77,12 +80,12 @@ function entries(ex::Expr...)
     end
     _args = Base.unique(_args)
     @assert length(_args) == 1
-    _entries, _args[1]
+    _syms, _entries, _args[1]
 end
 
 function lrs(exprs::Vector{Expr})
-    ls, arg = entries(exprs...)
-    lrs = LinearRecSystem(arg)
+    syms, ls, arg = entries(exprs...)
+    lrs = LinearRecSystem(arg, syms)
     push!(lrs, ls...)
     lrs
 end
