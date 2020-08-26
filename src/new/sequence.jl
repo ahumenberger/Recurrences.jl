@@ -179,6 +179,12 @@ nterms(a::Seq{T}) where {T <: FieldElem} = length(a.terms)
 
 coeffs(a::Seq{T}) where {T <: FieldElem} = iszero(a) ? [FractionField(base_ring(a))(0)] : map(coeff, terms(a))
 
+geometric_sequences(a::Seq{T}) where {T <: FieldElem} =
+    (parent(a)(geom(t), power(t)) for t in terms(a))
+
+factorial_sequences(a::Seq{T}) where {T <: FieldElem} =
+    (parent(a)(fact(t), power(t)) for t in terms(a))
+
 ishypergeometric(a::Seq{T}) where {T <: FieldElem} = nterms(a) == 1
 isrational(a::Seq{T}) where {T <: FieldElem} = iszero(a) || (ishypergeometric(a) && isrational(first(terms(a))))
 
@@ -280,7 +286,7 @@ function Base.:*(f::Seq{T}, g::Seq{T}) where T <: FieldElem
             push!(seqs, z)
         end
     end
-    sum(seqs)
+    reduce(+, seqs, init=zero(f))
 end
 
 function Base.:^(f::Seq{T}, i::Integer) where T <: FieldElem
@@ -289,14 +295,41 @@ function Base.:^(f::Seq{T}, i::Integer) where T <: FieldElem
     prod(f for _ in 1:i)
 end
 
+
+# ------------------------------------------------------------------------------
+
+function zero!(f::Seq{T}) where T <: FieldElem
+    check_parent(f, g)
+    f.terms = Array{HyperTerm{T}}(undef, 0)
+    f
+end
+
+function add!(f::Seq{T}, g::Seq{T}, h::Seq{T}) where T <: FieldElem
+    check_parent(f, g)
+    f.terms = (g+h).terms
+    f
+end
+
+function mul!(f::Seq{T}, g::Seq{T}, h::Seq{T}) where T <: FieldElem
+    check_parent(f, g)
+    f.terms = (g*h).terms
+    f
+end
+
+function addeq!(f::Seq{T}, g::Seq{T}) where T <: FieldElem
+    check_parent(f, g)
+    f.terms = (f+g).terms
+    f
+end
+
 # ------------------------------------------------------------------------------
 
 function (a::Seq{T})(b::Integer) where T <: FieldElem
     sum(t(b) for t in a.terms)
 end
 
-function (a::Seq{T})(b::PolyElem{T}) where T <: FieldElem
-    base_ring(a) != parent(b) && error("Polynomial rings do not match")
+function (a::Seq{T})(b::Nemo.fmpq_poly) where T <: FieldElem
+    # base_ring(a) != parent(b) && error("Polynomial rings do not match")
     (Nemo.degree(b) != 1 || lead(b) != 1 || denominator(Nemo.coeff(b, 0)) != 1) && error("Argument must be of form n+c where c is an integer")
     z = Seq{T}([t(b) for t in a.terms])
     z.parent = a.parent

@@ -2,23 +2,29 @@ struct HyperTerm{T <: FieldElem}
     coeff::FracElem{<: PolyElem{T}}
     geom::T
     fact::FracElem{<: PolyElem{T}}
-    power::PolyElem{T}
+    power::Nemo.fmpq_poly
 
-    function HyperTerm{T}(a::FracElem{<: PolyElem{T}}, b::PolyElem{T}) where T <: FieldElem
-        base_ring(a) != parent(b) && error("Polynomial rings do not match")
-        c1, f1 = monic_factors(numerator(a))
-        c2, f2 = monic_factors(denominator(a))
-        c = c1 // c2
-        p = _prod(f1)//_prod(f2)
+    function HyperTerm{T}(a::FracElem{<: PolyElem{T}}, b::Nemo.fmpq_poly) where T <: FieldElem
+        R = parent(b)
+        base_ring(a) != R && error("Polynomial rings do not match")
+        n, d = numerator(a), denominator(a)
+        cn, cd = lead(n), lead(d)
+        mn, md = n // R(cn), d // R(cd)
+        # c1, f1 = monic_factors(numerator(a))
+        # c2, f2 = monic_factors(denominator(a))
+        c = cn // cd
+        p = mn // md
         new{T}(one(a), c, parent(a)(p), b)
     end
-
+    
     function HyperTerm{T}(a::FracElem{<: PolyElem{T}}) where T <: FieldElem
         R = base_ring(a)
-        new{T}(a, one(base_ring(R)), one(a), R([0,1]))
+        # TODO: creating the poly ring here is not right
+        _, n = PolynomialRing(QQ, "n")
+        new{T}(a, one(base_ring(R)), one(a), n)
     end
-
-    function HyperTerm{T}(a::FracElem{<: PolyElem{T}}, b::T, c::FracElem{<:PolyElem{T}}, d::PolyElem{T}) where T <: FieldElem
+    
+    function HyperTerm{T}(a::FracElem{<: PolyElem{T}}, b::T, c::FracElem{<:PolyElem{T}}, d::Nemo.fmpq_poly) where T <: FieldElem
         new{T}(a, b, c, d)
     end
 end
@@ -135,7 +141,7 @@ end
 function Base.div(f::HyperTerm{T}, g::HyperTerm{T}) where T <: FieldElem
     iszero(g) && error("Division by zero")
     a, b = normalise(f), normalise(g)
-    HyperTerm{T}(a.coeff/b.coeff, a.geom/b.geom, a.fact/b.fact, deepcopy(a.power))
+    HyperTerm{T}(a.coeff//b.coeff, a.geom//b.geom, a.fact//b.fact, deepcopy(a.power))
 end
 
 # ------------------------------------------------------------------------------
@@ -143,6 +149,9 @@ end
 isrational(a::HyperTerm{T}) where T <: FieldElem = isone(a.geom) && isone(a.fact)
 
 coeff(a::HyperTerm{T}) where T <: FieldElem = a.coeff
+geom(a::HyperTerm{T}) where T <: FieldElem = a.geom
+fact(a::HyperTerm{T}) where T <: FieldElem = a.fact
+power(a::HyperTerm{T}) where T <: FieldElem = a.power
 
 function change_coeff_field(F::Field, a::HyperTerm{T}) where T <: FieldElem
     # @info "" change_base_ring(F, a.coeff)
@@ -152,7 +161,7 @@ function change_coeff_field(F::Field, a::HyperTerm{T}) where T <: FieldElem
         change_base_ring(F, a.coeff),
         F(a.geom),
         change_base_ring(F, a.fact),
-        change_base_ring(F, a.power)
+        a.power
     )
 end
 
@@ -170,6 +179,7 @@ function (a::HyperTerm{T})(b::Integer) where T <: FieldElem
     return z
 end
 
-function (a::HyperTerm{T})(b::PolyElem{T}) where T <: FieldElem
-    HyperTerm{T}(a.coeff(b), deepcopy(a.geom), a.fact(b), a.power(b))
+function (a::HyperTerm{T})(b::Nemo.fmpq_poly) where T <: FieldElem
+    b_ = change_base_ring(base_ring(base_ring(a.coeff)), b)
+    HyperTerm{T}(a.coeff(b_), deepcopy(a.geom), a.fact(b_), a.power(b))
 end
