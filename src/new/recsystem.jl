@@ -140,13 +140,13 @@ function blockdiagonal(m::MatrixElem)
     @info "" m
     R = base_ring(m)
     s = size(m, 1)
-    row = zeros(R, s)
+    row = zeros(R, 1, s)
     blocks = MatrixElem[]
     i0 = 1
     for i in 1:s-1
-        row[i] = R(0)
-        row[i+1] = R(1)
-        if m[i,:] != row
+        row[1,i] = R(0)
+        row[1,i+1] = R(1)
+        if Array(m[i,:]) != row
             push!(blocks, m[i0:i, i0:i])
             i0 = i+1
         end
@@ -180,32 +180,37 @@ function decouple(lrs::LinearRecSystem)
     map(σinv, C), A
 end
 
+Base.promote_rule(::Type{Frac{T}}, ::Type{Frac{T}}) where T <: RingElem = Frac{T}
+
 function solveblock(C::MatrixElem, initvec::MatrixElem, arg::PolyElem)
     csize = size(C, 1)
-    @debug "Solve companion block" C
+    @debug "Solve companion block" C Array(initvec)
     R, x = PolynomialRing(base_ring(C), "x")
     cp1 = sum(sum(c * p * x^(j-1) for (j, p) in enumerate(pascal(i-1, alt = true))) for (i, c) in enumerate(Array(C)[end,:]))
     cp2 = sum(p * x^(j-1) for (j, p) in enumerate(pascal(csize, alt = true)))
     coeffpoly = cp1 + cp2
-    coeffs = [Nemo.coeff(coeffpoly, i) for i in 0:length(coeffpoly)-1]
-    @debug "Coefficients for recurrence" coeffs
-    if any(length(numerator(c)) > 1 || length(denominator(c)) > 1 for c in coeffs)
-        @error "Only C-finite recurrences supported by now"
-        RecurrenceT = HyperRecurrence
-        ClosedFormT = HyperClosedForm
-    else
-        RecurrenceT = CFiniteRecurrence
-        ClosedFormT = CFiniteClosedForm
-    end
-    rec = RecurrenceT(variables(Symbol), arg, coeffs)
+    coeffs = [Nemo.coeff(coeffpoly, i) for i in 0:degree(coeffpoly)]
+    @debug "Coefficients for recurrence" coeffs degree(coeffpoly) C
+    # if any(length(numerator(c)) > 1 || length(denominator(c)) > 1 for c in coeffs)
+    #     @error "Only C-finite recurrences supported by now"
+    #     RecurrenceT = HyperRecurrence
+    #     ClosedFormT = HyperClosedForm
+    # else
+    #     RecurrenceT = CFiniteRecurrence
+    #     ClosedFormT = CFiniteClosedForm
+    # end
+    rec = HyperRecurrence(variables(Symbol), arg, coeffs)
     @debug "Reference recurrence" rec
-    cf = closedform(rec)
+    cf = closedform(rec, init = initvec)
 
-    initsubs = Dict(zip(cf.initvec, Array(initvec)[1:length(cf.initvec)]))
-    @debug "Rules for substitution of initial values" initsubs
-    cf = init(cf, initsubs)
+    # @info "" collect(geometric_sequences(cf))
+    # initsubs = Dict(zip(cf.initvec, Array(initvec)[1:length(cf.initvec)]))
+    # @debug "Rules for substitution of initial values" initsubs
+    # cf = init(cf, initsubs)
 
-    cforms = ClosedForm[cf]
+    # _arg = change_base_ring(base_ring(base_ring(cf)), arg)
+    # @info "" typeof(arg) base_ring(_arg) base_ring(_arg+1) base_ring(cf)
+    cforms = Seq[cf]
     for i in 1:csize-1
         push!(cforms, cforms[i](arg+1) - cforms[i](arg))
     end
@@ -213,14 +218,15 @@ function solveblock(C::MatrixElem, initvec::MatrixElem, arg::PolyElem)
     cforms
 end
 
+
 function solve(lrs::LinearRecSystem)
-    cforms = CFiniteClosedForm[]
+    cforms = Pair{Symbol,Seq}[]
     if isdecoupled(lrs) && ishomogeneous(lrs)
         for i in 1:nrows(lrs)
             coeffs = [m[i,i] for m in lrs.mat]
-            rec = CFiniteRecurrence(lrs.funcs[i], lrs.arg, coeffs)
+            rec = HyperRecurrence(lrs.funcs[i], lrs.arg, coeffs)
             cf = closedform(rec)
-            push!(cforms, cf)
+            push!(cforms, lrs.funcs[i] => cf)
         end
     else
         lrs = monic(lrs)
@@ -244,32 +250,33 @@ function solve(lrs::LinearRecSystem)
 
         if lrs.funcs != oldlrs.funcs
             # Assume lrs got homogenized, therefore initial value of introduced variable is 1
-            _initvec[end] = F(1)
+            _initvec[length(_initvec), 1] = F(1)
         end
         maxsize = maximum(size.(blocks, 1))
         # M = _mat[1]
         J = identity_matrix(M)
-        @info "" typeof(J) typeof(_initvec)
-        D = inv(_A)
+        D = -M
+        @info "asfdasdfas" _A D M
         imat = zero_matrix(S, size(M, 1), 0)
-        @info "" typeof(J) typeof(initvec) typeof(D) map(x->x(lrs.arg), D) |> typeof
         for i in 0:maxsize-1
-            ivec = (MS(Array(map(x->x(i), D))) * J * _initvec)
+            ivec = J * _initvec
             imat = hcat(imat, ivec)
-            J = MS(Array(map(x->x(i+1), M))) * J
+            J = MS(Array(map(x->x(i+1), D))) * J
         end
-        @debug "Matrix containing initial values" imat
-        result = ClosedForm[]
+        @debug "Matrix containing initial values" imat inv(_A)*imat
+        result = Seq[]
         i0 = 1
         for C in blocks
-            append!(result, solveblock(C, imat[i0,:], lrs.arg))
+            append!(result, solveblock(C, (inv(_A)*imat)[i0,:], lrs.arg))
             i0 += size(C, 1)
         end
-        result = A * result
+        sR = parent(first(result))
+        rs = MatrixSpace(sR, length(result), 1)(result)
+        result = map(sR, _A) * rs
         @debug "Final closed forms" result
 
-        for i in 1:length(oldlrs.funcs)
-            push!(cforms, ClosedForm(lrs.funcs[i], result[i]))
+        for (i, v) in enumerate(oldlrs.funcs)
+            push!(cforms, v => Array(result)[i])
         end
     end
     cforms
