@@ -36,7 +36,7 @@ function algpoly(plist::Vector{T}, f, n) where {T}
     solutions = typeof(n)[]
     S = base_ring(n)
     for j in 1:rank
-        col = ker[:, j]
+        col = Array(ker[:, j])
         s = sum(Nemo.coeff(genpoly, i)(col...)*n^i for i in 0:length(genpoly))
         push!(solutions, s)
     end
@@ -141,7 +141,7 @@ function gosper(t::Seq{T}, arg) where {T <: FieldElem}
     end
     a = c1//c2 * ps[end]
     b = qs[end]
-    c = R(_prod(ss[i](arg-j) for i in 1:length(hs) for j in 1:hs[i]))
+    c = R(_prod(ss[i](arg-j) for i in 1:length(hs) for j in 1:Int(hs[i])))
     @debug "Coefficients for auxiliary equation" a b c ss
 
     if degree(a) != degree(b) || lead(a) != lead(b)
@@ -188,8 +188,8 @@ function gosper(t::Seq{T}, arg) where {T <: FieldElem}
     xs = zeros(base_ring(arg), d+1)
     nc = ncols(mM)
     for i in 1:r
-        j = findfirst(isone, collect(mM[i, 1:nc-1]))
-        xs[j] = mM[i, nc]
+        I = findfirst(isone, Array(mM[i, 1:nc-1]))
+        xs[I[2]] = mM[i, nc]
     end
     @debug "Method of undetermined coefficients" r mM xs
     iszero(xs) && return nothing
