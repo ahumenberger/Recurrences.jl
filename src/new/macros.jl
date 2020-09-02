@@ -1,3 +1,5 @@
+replace_post(ex, s, s′) = postwalk(x -> x == s ? s′ : x, ex)
+
 function LinearRecEntry(expr::Expr)
     CoeffT = QQ
     _funcs = Symbol[]
@@ -23,8 +25,8 @@ function LinearRecEntry(expr::Expr)
     # minarg = minimum(convert(Rational, x) for x in s_args)
     minarg = convert(Int, minimum(s_args))
     if !iszero(minarg)
-        shifted = SymEngine.subs(s_expr, s_argsym => s_argsym - minarg)
-        return LinearRecEntry(Symbol, PolyElem, shifted)
+        _expr = replace_post(expr, _argsym, :($_argsym - $minarg))
+        return LinearRecEntry(_expr)
     end
     maxarg = convert(Int, maximum(s_args))
 

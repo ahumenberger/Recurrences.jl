@@ -47,9 +47,10 @@ function closedform(r::HyperRecurrence{T}; init=nothing) where {T}
         end
     end
 
-    F = parent(first(cfs))
+    F = isnothing(init) ? F : base_ring(base_ring(parent(first(cfs))))
     sequences = [change_coeff_field(F, s) for s in sequences]
     S = parent(first(sequences))
+    @debug "Coefficient field" F S
 
     cform = sum(S(c)*s for (c, s) in zip(cfs, sequences))
 

@@ -179,11 +179,8 @@ nterms(a::Seq{T}) where {T <: FieldElem} = length(a.terms)
 
 coeffs(a::Seq{T}) where {T <: FieldElem} = iszero(a) ? [FractionField(base_ring(a))(0)] : map(coeff, terms(a))
 
-geometric_sequences(a::Seq{T}) where {T <: FieldElem} =
-    (parent(a)(geom(t), power(t)) for t in terms(a))
-
-factorial_sequences(a::Seq{T}) where {T <: FieldElem} =
-    (parent(a)(fact(t), power(t)) for t in terms(a))
+geometric_terms(a::Seq{T}) where {T <: FieldElem} = map(geometric_term, terms(a))
+factorial_terms(a::Seq{T}) where {T <: FieldElem} = map(factorial_term, terms(a))
 
 ishypergeometric(a::Seq{T}) where {T <: FieldElem} = nterms(a) == 1
 isrational(a::Seq{T}) where {T <: FieldElem} = iszero(a) || (ishypergeometric(a) && isrational(first(terms(a))))

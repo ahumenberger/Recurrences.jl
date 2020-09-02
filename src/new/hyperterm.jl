@@ -32,19 +32,22 @@ end
 function normalise(a::HyperTerm{T}) where T <: FieldElem
     norm = parent(a.power)([0, 1])
     a.power == norm && return a
-
+    R = base_ring(base_ring(a.coeff))
+    _norm = change_base_ring(R, norm)
     # TODO: make sure that a.power is of the form n+c where c is an integer
     d = convert(Int, numerator(Nemo.coeff(a.power - norm, 0)))
     c = a.coeff
     if !isone(a.fact)
         if isnegative(d)
-            c *= 1//prod(a.fact(norm + i) for i in 1:abs(d))
+            c *= 1//prod(a.fact(_norm + i) for i in 1:abs(d))
         else
-            c *= prod(a.fact(norm - i) for i in 0:d-1)
+            c *= prod(a.fact(_norm - i) for i in 0:d-1)
         end
     end
-    f = isone(a.fact) ? a.fact : a.fact(a.power - (2*d))
+    _power = change_base_ring(R, a.power)
+    f = isone(a.fact) ? a.fact : a.fact(_power - (2*d))
     c *= a.geom^d
+    @debug "Normalised" parent(c) parent(a.geom) parent(f) parent(norm)
     HyperTerm{T}(c, a.geom, f, norm)
 end
 
@@ -152,6 +155,24 @@ coeff(a::HyperTerm{T}) where T <: FieldElem = a.coeff
 geom(a::HyperTerm{T}) where T <: FieldElem = a.geom
 fact(a::HyperTerm{T}) where T <: FieldElem = a.fact
 power(a::HyperTerm{T}) where T <: FieldElem = a.power
+
+function geometric_term(a::HyperTerm{T}) where T <: FieldElem
+    HyperTerm{T}(
+        one(a.coeff),
+        deepcopy(a.geom),
+        one(a.fact),
+        deepcopy(a.power)
+    )
+end
+
+function factorial_term(a::HyperTerm{T}) where T <: FieldElem
+    HyperTerm{T}(
+        one(a.coeff),
+        one(a.geom),
+        deepcopy(a.fact),
+        deepcopy(a.power)
+    )
+end
 
 function change_coeff_field(F::Field, a::HyperTerm{T}) where T <: FieldElem
     # @info "" change_base_ring(F, a.coeff)

@@ -157,23 +157,23 @@ function blockdiagonal(m::MatrixElem)
     blocks
 end
 
-(x::FracElem)(y...) = numerator(x)(y...) // denominator(x)(y...)
+(x::FracElem)(y...) = evaluate(numerator(x), y...) // evaluate(denominator(x), y...)
 Nemo.AbstractAlgebra.change_base_ring(R::Nemo.AbstractAlgebra.Ring, x::FracElem) = change_base_ring(R, numerator(x)) // change_base_ring(R, denominator(x))
 
 function decouple(lrs::LinearRecSystem)
     @assert order(lrs) == 1 "Not a recurrence system of order 1."
     @assert ishomogeneous(lrs) "Not a homogeneous recurrence system ."
-
+    I = identity_matrix(elem_ring(lrs), nrows(lrs))
     σ = x -> x(lrs.arg-1)
     σinv = x -> x(lrs.arg+1)
     δ = x -> σ(x) - x
-    M = map(σ, (-lrs.mat[1]) - identity_matrix(elem_ring(lrs), nrows(lrs)))
+    M = map(σ, (-lrs.mat[1])) - I
     C, A = rational_form(copy(M), σ, σinv, δ)
     # C = simplify.(C)
     # A = simplify.(A)
     # @info "" factorize(A)
-    @debug "Zürcher" input=-lrs.mat[1] C A M (inv(A) * M * σ.(A) + inv(A) * δ.(A))
-    # @assert inv(A) * M * σ.(A) + inv(A) * δ.(A) == C "Zürcher wrong"
+    @debug "Zürcher" input=-lrs.mat[1] C A M map(σinv, C) (inv(A) * M * map(σ, A) + inv(A) * map(δ, A))
+    # @assert inv(A) * M * map(σ, A) + inv(A) * map(δ, A) == C "Zürcher wrong"
 
     map(σinv, C), A
 end
@@ -184,11 +184,11 @@ function solveblock(C::MatrixElem, initvec::MatrixElem, arg::PolyElem)
     csize = size(C, 1)
     @debug "Solve companion block" C Array(initvec)
     R, x = PolynomialRing(base_ring(C), "x")
-    cp1 = sum(sum(c * p * x^(j-1) for (j, p) in enumerate(pascal(i-1, alt = true))) for (i, c) in enumerate(Array(C)[end,:]))
+    cp1 = sum(sum(c * (-1)^(i-1) * p * x^(j-1) for (j, p) in enumerate(pascal(i-1, alt = true))) for (i, c) in enumerate(Array(C)[end,:]))
     cp2 = sum(p * x^(j-1) for (j, p) in enumerate(pascal(csize, alt = true)))
-    coeffpoly = cp1 + cp2
+    coeffpoly = cp2 - cp1
     coeffs = [Nemo.coeff(coeffpoly, i) for i in 0:degree(coeffpoly)]
-    @debug "Coefficients for recurrence" coeffs degree(coeffpoly) C
+    @debug "Coefficients for recurrence" coeffs degree(coeffpoly) C cp1 cp2
     # if any(length(numerator(c)) > 1 || length(denominator(c)) > 1 for c in coeffs)
     #     @error "Only C-finite recurrences supported by now"
     #     RecurrenceT = HyperRecurrence
@@ -216,6 +216,7 @@ function solveblock(C::MatrixElem, initvec::MatrixElem, arg::PolyElem)
     cforms
 end
 
+const ClosedForm = Pair{Symbol,Seq}
 
 function solve(lrs::LinearRecSystem)
     cforms = Pair{Symbol,Seq}[]
@@ -233,9 +234,13 @@ function solve(lrs::LinearRecSystem)
         M, A = decouple(lrs)
         blocks = blockdiagonal(M)
 
-        vars = [initvar(string(f), 0) for f in lrs.funcs]
+        vars = [initvar(string(f), 0) for f in oldlrs.funcs]
         R, initvec = PolynomialRing(base_ring(lrs.arg), vars)
         F = FractionField(R)
+
+        if nfuncs(oldlrs) != nfuncs(lrs)
+            push!(initvec, one(R))
+        end
 
         _arg = change_base_ring(F, lrs.arg)
         M = map(x->change_base_ring(F, x), lrs.mat[1])

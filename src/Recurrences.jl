@@ -1,6 +1,7 @@
 module Recurrences
 
 export @lrs
+export Seq, ClosedForm
 
 using MacroTools: postwalk, @capture, unblock
 using Combinatorics
@@ -16,11 +17,11 @@ const RExpr = Union{Expr,Symbol,Number}
 
 include("new/helper.jl")
 include("new/utils.jl")
+include("new/hyperterm.jl")
+include("new/sequence.jl")
 include("new/zuercher.jl")
 include("new/rectypes.jl")
 include("new/recsystem.jl")
-include("new/hyperterm.jl")
-include("new/sequence.jl")
 include("new/petkovsek.jl")
 include("new/macros.jl")
 
