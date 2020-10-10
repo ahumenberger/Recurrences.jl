@@ -183,12 +183,18 @@ Base.promote_rule(::Type{Frac{T}}, ::Type{Frac{T}}) where T <: RingElem = Frac{T
 function solveblock(C::MatrixElem, initvec::MatrixElem, arg::PolyElem)
     csize = size(C, 1)
     @debug "Solve companion block" C Array(initvec)
-    R, x = PolynomialRing(base_ring(C), "x")
-    cp1 = sum(sum(c * (-1)^(i-1) * p * x^(j-1) for (j, p) in enumerate(pascal(i-1, alt = true))) for (i, c) in enumerate(Array(C)[end,:]))
-    cp2 = sum(p * x^(j-1) for (j, p) in enumerate(pascal(csize, alt = true)))
-    coeffpoly = cp2 - cp1
-    coeffs = [Nemo.coeff(coeffpoly, i) for i in 0:degree(coeffpoly)]
-    @debug "Coefficients for recurrence" coeffs degree(coeffpoly) C cp1 cp2
+    if isone(csize)
+        R = base_ring(C)
+        coeffs = [-(first(C) + one(R)), one(R)]
+    else
+        R, x = PolynomialRing(base_ring(C), "x")
+        cp1 = sum(sum(c * (-1)^(i-1) * p * x^(j-1) for (j, p) in enumerate(pascal(i-1, alt = true))) for (i, c) in enumerate(Array(C)[end,:]))
+        cp2 = sum(p * x^(j-1) for (j, p) in enumerate(pascal(csize, alt = true)))
+        coeffpoly = cp2 - cp1
+        coeffs = [Nemo.coeff(coeffpoly, i) for i in 0:degree(coeffpoly)]
+        @debug "Coeff poly construction for companion block size > 1" degree(coeffpoly) C cp1 cp2
+    end
+    @debug "Coefficients for recurrence" coeffs 
     # if any(length(numerator(c)) > 1 || length(denominator(c)) > 1 for c in coeffs)
     #     @error "Only C-finite recurrences supported by now"
     #     RecurrenceT = HyperRecurrence
