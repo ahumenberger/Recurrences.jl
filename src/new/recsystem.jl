@@ -99,6 +99,18 @@ end
 
 Base.copy(lrs::LinearRecSystem{T}) where {T} = LinearRecSystem{T}(copy(lrs.funcs), lrs.arg, copy(lrs.mat), copy(lrs.inhom))
 
+function invertible_system!(lrs::LinearRecSystem)
+    # We are assuming that lrs is first-order
+    M = lrs.mat[1]
+    nonzero_cols = [i for i in 1:ncols(M) if !iszero_column(M, i)]
+    lrs.mat[1] = M[nonzero_cols, nonzero_cols]
+    lrs.mat[2] = lrs.mat[2][nonzero_cols, nonzero_cols]
+    lrs.inhom = lrs.inhom[nonzero_cols,:]
+    lrs.funcs = lrs.funcs[nonzero_cols]
+    # TODO return removed indices
+    @debug "Invertible system" nonzero_cols lrs
+end
+
 function homogenize(lrs::LinearRecSystem)
     homogenize!(copy(lrs))
 end
