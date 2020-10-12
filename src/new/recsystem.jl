@@ -238,12 +238,42 @@ const ClosedForm = Pair{Symbol,Seq}
 
 function solve(lrs::LinearRecSystem)
     cforms = Pair{Symbol,Seq}[]
-    if isdecoupled(lrs) && ishomogeneous(lrs)
+    vars = [initvar(string(f), 0) for f in lrs.funcs]
+    R, initvec = PolynomialRing(base_ring(lrs.arg), vars)
+    F = FractionField(R)
+    _arg = change_base_ring(F, lrs.arg)
+    S = FractionField(parent(_arg))
+
+    if isdecoupled(lrs)
+        _, x = PolynomialRing(elem_ring(lrs), "x")
+        n = gen(base_ring(elem_ring(lrs)))
         for i in 1:nrows(lrs)
-            coeffs = [m[i,i] for m in lrs.mat]
+            inhom = lrs.inhom[i,1]
+            if iszero(inhom)
+                # we have a homogeneous recurrence
+                ivec = nothing
+                coeffs = [m[i,i] for m in lrs.mat]
+            else
+                # we have to shift
+                t = lrs.mat[1][i,i]
+                poly = x^2 + t*x - inhom
+                const_term = Nemo.coeff(poly, 0)
+                _initvec = [initvec[i]]
+                k = 1
+                while !iszero(const_term)
+                    push!(_initvec, -last(_initvec)*t(k) + inhom(k))
+                    k = k + 1
+                    shift = sum(x^(i+1)*Nemo.coeff(poly, i)(n+1) for i in 1:degree(poly)) + const_term(n+1)
+                    poly = shift - poly
+                    const_term = Nemo.coeff(poly, 0)
+                end
+                ivec = MatrixSpace(S, length(_initvec), 1)([S(x) for x in _initvec])
+                @debug "Shifted poly" poly ivec
+                coeffs = [Nemo.coeff(poly, i) for i in 1:degree(poly)]
+            end
             rec = HyperRecurrence(lrs.funcs[i], lrs.arg, coeffs)
-            cf = closedform(rec)
-            push!(cforms, lrs.funcs[i] => cf)
+            cf = closedform(rec, init = ivec)
+            push!(cforms, lrs.funcs[i]=>cf)
         end
     else
         lrs = monic(lrs)
@@ -252,17 +282,11 @@ function solve(lrs::LinearRecSystem)
         M, A = decouple(lrs)
         blocks = blockdiagonal(M)
 
-        vars = [initvar(string(f), 0) for f in oldlrs.funcs]
-        R, initvec = PolynomialRing(base_ring(lrs.arg), vars)
-        F = FractionField(R)
-
         if nfuncs(oldlrs) != nfuncs(lrs)
             push!(initvec, one(R))
         end
 
-        _arg = change_base_ring(F, lrs.arg)
         M = map(x->change_base_ring(F, x), lrs.mat[1])
-        S = FractionField(parent(_arg))
         MS = MatrixSpace(S, size(A)...)
         # _mat = map(m->change_base_ring(F, m), lrs.mat)
         _initvec = MatrixSpace(S, length(initvec), 1)([S(x) for x in initvec])
