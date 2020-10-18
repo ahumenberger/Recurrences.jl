@@ -17,6 +17,10 @@ PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
 SymPy = "24249f21-da20-56a4-8eb1-6a02cf4ae2e6"
 
+[compat]
+Combinatorics = "1.0.2"
+Polynomials = "1.1.9"
+
 [extras]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
