@@ -15,14 +15,14 @@ import Base: convert
 
 const RExpr = Union{Expr,Symbol,Number}
 
-include("new/helper.jl")
-include("new/utils.jl")
-include("new/hyperterm.jl")
-include("new/sequence.jl")
-include("new/zuercher.jl")
-include("new/rectypes.jl")
-include("new/recsystem.jl")
-include("new/petkovsek.jl")
-include("new/macros.jl")
+include("helper.jl")
+include("utils.jl")
+include("hyperterm.jl")
+include("sequence.jl")
+include("zuercher.jl")
+include("rectypes.jl")
+include("recsystem.jl")
+include("petkovsek.jl")
+include("macros.jl")
 
 end # module
