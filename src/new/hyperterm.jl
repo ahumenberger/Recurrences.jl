@@ -175,9 +175,6 @@ function factorial_term(a::HyperTerm{T}) where T <: FieldElem
 end
 
 function change_coeff_field(F::Field, a::HyperTerm{T}) where T <: FieldElem
-    # @info "" change_base_ring(F, a.coeff)
-    # R = change_base_ring(F, base_ring(a.coeff))
-
     HyperTerm{elem_type(F)}(
         change_base_ring(F, a.coeff),
         F(a.geom),

@@ -31,9 +31,6 @@ end
 
 # ------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------
-
-
  mutable struct Seq{T <: FieldElem} <: RingElem
     terms::Vector{HyperTerm{T}}
     parent::SeqRing{T}
@@ -44,24 +41,9 @@ end
        z = new{T}(b)
        return z
     end
- 
-    # Seq{T}(a::T) where T <: PolyElem = iszero(a) ? new{T}(Array{HyperTerm{T}}(undef, 0)) : new{T}([HyperTerm{T}(a)], 1)
  end
 
-
-
-# function Base.show(io::IO, t::Seq)
-#     if t.length == 0
-#         show(io, 0)
-#     else
-#         show(io, t.terms[1])
-#         for term in t.terms[2:end]
-#             show(io, " + ", term)
-#         end
-#     end
-# end
-
-# # ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 parent_type(::Type{Seq{T}}) where T <: FieldElem = SeqRing{T}
 

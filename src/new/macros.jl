@@ -54,14 +54,6 @@ function LinearRecEntry(expr::Expr)
 end
 
 macro lrs(input)
-    # _args = RExpr[]
-    # function_walk(input) do f, x
-    #     @assert length(x) == 1
-    #     push!(_args, x[1])
-    # end
-    # argsyms = Base.unique(Iterators.flatten(symbols(a) for a in _args))
-    # @assert length(argsyms) == 1 "More (or less) than one variable in the function arguments, got: $(argsyms)"
-    
     @capture(input, begin fields__ end)
     lrs(Vector{Expr}(fields))
 end
