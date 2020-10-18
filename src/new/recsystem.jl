@@ -259,7 +259,7 @@ function solve(lrs::LinearRecSystem)
                 poly = x^2 + t*x - inhom
                 const_term = Nemo.coeff(poly, 0)
                 _initvec = [initvec[i]]
-                k = 1
+                k = 0
                 while !iszero(const_term)
                     push!(_initvec, -last(_initvec)*t(k) + inhom(k))
                     k = k + 1
