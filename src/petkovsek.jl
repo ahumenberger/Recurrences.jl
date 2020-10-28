@@ -1,239 +1,265 @@
-function algpoly(polylist::Vector{Poly{T}}, f::Poly{T}, n) where {T}
-    @debug "algpoly" polylist
+function algpoly(plist::Vector{T}, f, n) where {T}
+    @debug "Algorithm [algpoly]" plist f
+    R = parent(n)
     # Construct polynomials qj that arise from treating the shift operator
 	# as the difference operator plus the identity operator.
-    qlist = []
-    for j in 0:length(polylist)-1
-        qj = 0
-        for i in j:length(polylist)-1
-
-            qj += (binomial(i, j) * polylist[i+1])
-
-        end
-        push!(qlist, qj)
-    end
+    r = length(plist) - 1
+    qlist = [sum(binomial(i, j) * plist[i+1] for i in j:r) for j in 0:r]
 
     # Find all candidates for the degree bound on output polynomial.
-    b = maximum([(degree(poly) - (j - 1)) for (j, poly) in enumerate(qlist)])
-    first = degree(f) - b
-    second = -1 * b - 1
-    lcoeffs = lc.(qlist)
-    alpha = 0
-    for j in 0:length(qlist)-1
-        aux = degree(qlist[j+1]) - j
-        if (degree(qlist[j+1]) - j) == b
-            alpha += lcoeffs[j+1] * fallingfactorial(n, j)
-        end
-    end
-    @debug "" alpha typeof(alpha)
-    deg = mroots(alpha)
-    deg = isa(deg, Dict) ? keys(deg) : deg
-    third = maximum(deg)
-    @debug "" qlist b deg first second third
-    d = convert(Int64, max(first, second, third, 0))
+    b = maximum([(Nemo.degree(q) - (j - 1)) for (j, q) in enumerate(qlist)])
+    alpha = sum(lead(q)*fallfactorial(n, j-1) for (j, q) in enumerate(qlist) if Nemo.degree(q) - (j-1) == b)
+    roots = [-Nemo.coeff(f, 0) for (f, _) in Nemo.factor(R(alpha))]
+    roots = [r for r in roots if r >= 0 && isone(denominator(r))]
+
+    first = Nemo.degree(f) - b
+    second = -b - 1
+    third = maximum([roots; 0])
+    d = convert(Int, numerator(max(first, second, third)))
+    @debug "Degree bound" first second third
 
     # Use method of undetermined coefficients to find the output polynomial.
-    varlist = variables(T, n=d+1)
-    # pol = 0 * n
-    # for i in 0:d
-    #     pol += n^i * varlist[i+1]
-    # end
-    genpoly = Poly(varlist, string(n))
-    @debug "Generic polynomial" genpoly
-    # solution = -1 * f
-    # for (i, p) in enumerate(polylist)
-    #     @debug "" shift(poly, i - 1) * p
-    #     # solution += subs(pol, (n, n + (i-1))) * poly
-    #     # @debug "" solution
-    # end
+    R, varlist = PolynomialRing(base_ring(n), ["x$i" for i in 1:d+1])
+    arg = change_base_ring(R, n)
+    genpoly = sum(v*arg^(i-1) for (i,v) in enumerate(varlist))
+    _plist = map(x->change_base_ring(R, x), plist)
+    @debug "Generic polynomial" genpoly varlist
 
-    poly = sum(shift(genpoly, i - 1) * p for (i, p) in enumerate(polylist))
-    poly -= f
+    poly = sum(genpoly(arg+(i - 1)) * p for (i, p) in enumerate(_plist))
+    poly -= change_base_ring(R, f)
     @debug "Poly" poly
-    if iszero(poly)
-        return Poly(one(T), string(n))
+
+    coefficients = [Nemo.coeff(poly, i) for i in 0:length(poly)]
+    A = [Nemo.coeff(cf, v) for cf in coefficients, v in varlist]
+    A = MatrixSpace(base_ring(R), size(A)...)(A)
+    rank, ker = kernel(A)
+    solutions = typeof(n)[]
+    S = base_ring(n)
+    for j in 1:rank
+        col = Array(ker[:, j])
+        s = sum(Nemo.coeff(genpoly, i)(col...)*n^i for i in 0:length(genpoly))
+        push!(solutions, s)
     end
-    coefficients = coeffs(poly)
-    filter!(e -> e != 0, coefficients)
-    sol = solve(coefficients, varlist)
-    missing = setdiff(varlist, keys(sol))
-    p = Poly([subs(c, sol) for c in coeffs(genpoly)], string(n))
-    solutions = Poly{T}[]
-    for v in missing
-        c = coeff(p, v)
-        if !iszero(c)
-            push!(solutions, c)
-        end
-    end
-    @debug "Solution for coefficients" sol p solutions
+    @debug "Algorithm [algpoly] return" solutions
     return solutions
 end
 
-function alghyper(polylist::Vector{Poly{T}}, n::T) where {T}
-    @debug "-> alghyper" polylist n
-    p = polylist[1]
-    alist = factors(p)
-    lcoeff = lc(p)
+function monic_factors(p::PolyElem)
+    fac = Nemo.factor(p)
+    u = Nemo.coeff(parent(p)(unit(fac)), 0)
+    isempty(fac) && return u, [one(p)]
+    fs = [(lead(f), div(f, parent(p)(lead(f)))) for (f, m) in fac for i in 1:m]
+    return u*prod(map(first, fs)), map(last, fs)
+end
 
-    # for (i,p) in enumerate(alist)
-    #     alist[i] /= lcoeff
-    # end
-    if !(1 in alist)
-        push!(alist, Poly([T(1)], string(n)))
-    end
+function all_monic_factors(p::PolyElem)
+    unit, fs = monic_factors(p)
+    fs = [one(p); fs]
+    unique(prod(s) for s in Combinatorics.powerset(fs, 1))
+end
 
-    d = length(polylist)
-    p = shift(polylist[end], -d+2)
-    lcoeff = lc(p)
-    blist = factors(p)
-    # for (i,p) in enumerate(blist)
-    #     blist[i] /= lcoeff
-    # end
-    if !(1 in blist)
-        push!(blist, Poly([T(1)], string(n)))
-    end
+_prod(itr) = reduce(*, itr, init=1)
 
-    alist, blist = reverse(alist), reverse(blist)
+function alghyper(plist::Vector{T}, n; all_solutions::Bool=false) where {T}
+    @debug "Algorithm [alghyper]" plist
+    d = length(plist)
 
-    @debug "" alist blist
+    alist = all_monic_factors(plist[1](n))
+    blist = all_monic_factors(plist[end](n-(d-2)))
 
-    solutions = []
-    for aelem in alist
-        for belem in blist
-            @debug "Monic factors" aelem belem
-            plist = Poly{T}[]
-            for i in 0:d-1 
-                pi = polylist[i+1]
-                for j in 0:i-1
-                    pi *= shift(aelem, j)
-                end
-                for j in i:d-1
-                    pi *= shift(belem, j)
-                end
-                push!(plist, pi)
-            end
+    @debug "All monic factors" alist blist
 
-            m = maximum(degree.(plist))
-            alpha = convert(Vector{T}, coeff2.(plist, m))
-            # @syms z
-            # zpol = 0*z
-            # for i in 0:length(alpha) - 1
-            #     zpol += alpha[i+1]*z^i
-            # end
-            zpol = Poly(alpha)
+    solutions = FracElem{typeof(n)}[]
+    for a in alist
+        for b in blist
+            @debug "Monic factors" a b
 
-            @debug "" zpol typeof(zpol) typeof(alpha) typeof(plist)
-            vals = [key for (key,val) in mroots(zpol) if key != 0]
-            @debug "Roots" zpol vals
-            for x in vals
-                polylist2 = [x^(i-1)*p for (i,p) in enumerate(plist)]
-                @debug "" typeof(polylist2)
+            ps = [plist[i+1] * _prod(a(n+j) for j in 0:i-1) * _prod(b(n+j) for j in i:d-2) for i in 0:d-1]
+
+            m = maximum(Nemo.degree(p) for p in ps)
+            alphas = map(x->Nemo.coeff(x, m), ps)
+            zpoly = sum(c*n^(i-1) for (i, c) in enumerate(alphas))
+            zs = roots(zpoly)
+            zs = [z for z in zs if !iszero(z)]
+            @debug "Nonzero roots" alphas zpoly zs
+            for z in zs
+                _ps = [z^(i-1)*p for (i, p) in enumerate(ps)]
+                @debug "Coefficients auxiliary recurrence" _ps
                 
-                polysols = algpoly(polylist2, Poly(T[0], string(n)), n)
-                @debug "Solutions of algpoly" polysols
+                _sols = algpoly(_ps, zero(n), n)
+                @debug "Solutions of algpoly" _sols
 
-                for c in polysols
-                    @debug "" c
-                    s = x * (aelem // belem) * (shift(c, 1) // c)
-                    @info "Solution" s
+                for c in _sols
+                    s = z * (a(n) // b(n)) * (c(n+1) // c(n))
+                    !all_solutions && return s
                     push!(solutions, s)
                 end
             end
         end
     end
-    return solutions
+    @debug "Algorithm [alghyper] return" unique(solutions) solutions
+    !all_solutions && return nothing
+    return unique(solutions)
 end
 
-function commonfactors(p::Poly{T}, q::Poly{T}) where {T}
-    if p == 1 || q == 1
-        return Poly(one(T), p.var) // 1, Pair(FallingFactorial(p), FallingFactorial(q))
+function gosper(t::Seq{T}, arg) where {T <: FieldElem}
+    @debug "[Gosper]" t arg
+    r = div(t(arg+1), t(arg))
+    @assert isrational(r)
+    r = first(coeffs(r))
+    c1, fac1 = monic_factors(numerator(r))
+    c2, fac2 = monic_factors(denominator(r))
+    if isempty(fac1) && isempty(fac2)
+        @debug "Rational coefficients" c1 c2
+        return parent(t)(c1//c2*arg)
     end
-    k = variables(T)
-    res = resultant(shift(p, k), q)
-    roots = keys(mroots(res)) |> collect
-    filter!(x -> isinteger(x), roots)
-    @debug "Integer roots of resultant" roots
-    if isempty(roots)
-        return Poly(one(T), p.var) // 1, Pair(FallingFactorial(p), FallingFactorial(q))
-    end
+    R = parent(arg)
+    f = R(_prod(fac1))
+    g = R(_prod(fac2))
+    @debug "Gosper start" t r f g
+    @assert gcd(f, g) == 1
 
-    r = convert(Int64, roots[1])
-    g = gcd(shift(p, r), q)
-    @debug "GCD" g shift(p, r) q
-    if r < 0
-        @debug "" [polyval(g, i) for i in 1:-r]
-        @debug "" [shift(g, i) for i in 1:-r]
-        u = prod(polyval(g, i) for i in 1:-r)
-        v = prod(shift(g, i) for i in 1:-r)
-        rf = v // u 
+    _R, _h = PolynomialRing(base_ring(R), "h")
+    _arg = change_base_ring(_R, arg)
+    _res = resultant(f(_arg), g(_arg+_h))
+    @debug "Resultant" _res
+
+    hs = roots(_res)
+    hs = [numerator(r) for r in hs if r >= 0 && isone(denominator(r))]
+    @debug "Non-negative integer roots of resultant" hs
+
+    sz, type = length(hs), typeof(arg)
+    ss = Array{type}(undef, sz)
+    ps = Array{type}(undef, sz+1)
+    qs = Array{type}(undef, sz+1)
+    ps[1] = f
+    qs[1] = g
+    for j in 1:length(hs)
+        ss[j] = gcd(ps[j](arg), qs[j](arg+hs[j]))
+        ps[j+1] = div(ps[j], ss[j])
+        qs[j+1] = div(qs[j], ss[j](arg-hs[j]))
+    end
+    a = c1//c2 * ps[end]
+    b = qs[end]
+    c = R(_prod(ss[i](arg-j) for i in 1:length(hs) for j in 1:Int(hs[i])))
+    @debug "Coefficients for auxiliary equation" a b c ss
+
+    if degree(a) != degree(b) || lead(a) != lead(b)
+        D = [degree(c) - max(degree(a), degree(b))]
     else
-        @debug "" [polyval(g, -i+1) for i in 1:r]
-        @debug "" [shift(g, -i+1) for i in 1:r]
-        u = prod(polyval(g, -i+1) for i in 1:r)
-        v = prod(shift(g, -i+1) for i in 1:r)
-        rf = u // v
+        d = degree(a)
+        if iszero(d)
+            D = [degree(c) - d + 1]
+        else
+            A = Nemo.coeff(a, d-1)
+            B = Nemo.coeff(b(arg-1), d-1)
+            dd = (B-A)/lead(a)
+            if dd >= 0 && isone(denominator(dd))
+                D = [degree(c) - d + 1, convert(Int, numerator(dd))]
+            else
+                D = [degree(c) - d + 1]
+            end
+        end
     end
-    @debug "" u v rf
+    filter!(x->x>=0, D)
+    @debug "Degree set" D
+    isempty(D) && return nothing
+    d = maximum(D)
 
-    s, sr = divrem(p, shift(g, -r))
-    t, tr = divrem(q, g)
-    if !iszero(sr) || !iszero(tr)
-        @error "Remainder not zero (should not happen) - got $((sr, tr))"
+    # Use method of undetermined coefficients
+    _S, _vs = PolynomialRing(base_ring(R), ["v$i" for i = 0:d])
+    _arg = change_base_ring(_S, arg)
+    _a = change_base_ring(_S, a)
+    _b = change_base_ring(_S, b)
+    aux = sum(_vs[i+1]*_arg^i for i = 0:d)
+    poly = _a(_arg)*aux(_arg+1) - _b(_arg-1)*aux(_arg)
+    @debug "Solution template" aux poly
+
+    deg = degree(poly)
+    cs = [Nemo.coeff(poly, i) for i in 0:deg]
+    mA = [Nemo.coeff(c, v) for c in cs, v in _vs]
+    mB = [Nemo.coeff(c, i) for i in 0:deg]
+    @debug "Solve" mA mB
+
+    mM = hcat(mA, mB)
+    mM = MatrixSpace(base_ring(arg), size(mM)...)(mM)
+    r, mM = rref(mM)
+
+    xs = zeros(base_ring(arg), d+1)
+    nc = ncols(mM)
+    for i in 1:r
+        I = findfirst(isone, Array(mM[i, 1:nc-1]))
+        xs[I[2]] = mM[i, nc]
     end
-    rfunc, ffact = commonfactors(s, t)
-    rfunc * rf, ffact
+    @debug "Method of undetermined coefficients" r mM xs
+    iszero(xs) && return nothing
+
+    x = sum(xs[i+1]*arg^i for i = 0:d)
+    z = parent(t)(b(arg-1)*x(arg)//c(arg))*t
+    @debug "Solution from gosper" z x b c
+    @assert z(arg+1) - z(arg) == t
+    return z
 end
 
-function hgterms(s::RationalFunction)
-    c, num, den = monic(s)
-    @debug "" c num den
-    # fnum, fden = factors(num), factors(den)
-    if num != 1 && den != 1
-        # TODO: is this shift really the correct thing to do?!
-        proots = keys(mroots(num)) |> collect
-        qroots = keys(mroots(den)) |> collect
-        pqroots = filter(x -> isinteger(x), [proots; qroots])
-        @debug "" pqroots
-        sh = isempty(pqroots) ? 0 : minimum(pqroots)
-        sh = sh < 0 ? -sh : 0
-        num, den = shift(num, sh), shift(den, sh)
+issolution(s::Seq, cfs::Vector{<:FracElem}, arg::PolyElem) = iszero(sum(c * s(arg + i - 1) for (i, c) in enumerate(cfs)))
 
-        rfunc, ffact = commonfactors(num, den)
-        rfunc, ffact = shift(rfunc, -sh), Pair(shift(ffact[1], -sh), shift(ffact[2], -sh))
+function petkovsek(cfs::Vector{<:FracElem}, arg::PolyElem, level::Int=0)
+    @debug "[Petkovsek]" cfs arg
+    # Get rid of denominator
+    m = reduce(lcm, map(denominator, cfs))
+    polys = [numerator(c * m) for c in cfs]
 
-        return c, rfunc, ffact
+    ls = map(monic_factors, polys)
+    cs = map(first, ls)
+    g = reduce(gcd, cs)
+    cs = map(x->div(x, g), cs)
+    polys = [parent(arg)(c*p) for (c, p) in zip(cs, map(_prod∘last, ls))]
+
+
+    g = reduce(gcd, polys)
+    polys = map(x->div(x, g), polys)
+    S = SequenceRing(parent(arg))
+    sz = length(polys)
+    if sz == 2
+        # Recurrence is hypergeometric
+        return [S((-polys[1]//polys[2])(arg), arg+1)(arg-1)]
     end
-    c, 1, Pair(FallingFactorial(num), FallingFactorial(den))
+
+    # Get first hypergeometric solution
+    hgterm = alghyper(polys, arg)
+    if isnothing(hgterm)
+        @debug "No solution from Hyper"
+        return nothing
+    end
+    s_n = S(hgterm(arg), arg+1)(arg-1)
+    @debug "Hyper" hgterm s_n
+    @assert issolution(s_n, cfs, arg)
+    
+    # Take y(n) = z(n)s(n) for unknown z(n), and plug into original recurrence.
+    # Then reduce order by taking u(n) = z(n+1) - z(n)
+    R, zs = PolynomialRing(S, ["z$i" for i in 0:sz-1])
+    poly = sum(s_n(arg+(i-1))*S(cfs[i])*zs[i] for i in 1:sz)
+
+    bs = [Nemo.coeff(poly, z) for z in zs]
+    for i in reverse(2:length(bs)-1)
+        bs[i] = bs[i] + bs[i+1]
+    end
+    bs = bs[2:end]
+    g = reduce(gcd, bs)
+    bs = map(x->div(x, g), bs)
+    @debug "Coefficients for order-reduced recurrence" g bs map(isrational, bs) terms(bs[end])
+    @assert all(isrational(b) for b in bs)
+    # Recursively solve for u(n)
+    u_basis = petkovsek(map(first∘coeffs, bs), arg, level+1)
+    @assert all(iszero(sum(c * u(arg + i - 1) for (i, c) in enumerate(bs))) for u in u_basis)
+    # Use Gosper to resolve antidifference, i.e. find z(n) satisfying u(n) = z(n+1) - z(n)
+    z_basis = [gosper(u, arg) for u in u_basis]
+    if any(map(isnothing, z_basis))
+        @debug "No solution from Gosper"
+        return nothing
+    end
+    @debug "Solutions from Gosper" z_basis
+    ss = [s_n * z for z in z_basis]
+    @assert all(issolution(s, cfs, arg) for s in ss)
+    [s_n; ss]
 end
-
-function petkovsek(cf::Vector{T}, arg::T) where {T}
-    cf = simplify.(cf)
-    @debug "Petkovsek - input" cf
-    ls = summands.(cf) |> Iterators.flatten
-    ds = Base.denominator.(ls)
-    val = lcm2(ds...)
-    @info "" ds val
-    cf *= val
-    @info "" cf
-    cf = simplify.(cf)
-    cf = coeffs.(cf, arg) # SymPy.Poly.(coeffs, arg)
-    hyper = alghyper(Poly.(cf, string(arg)), arg)
-    @debug "Petkovsek - alghyper" hyper
-    hgterms.(hyper)
-end
-
-# function hyper()
-
-# end # module
-
-# using SymPy
-# using Petkovsek
-
-# @syms n y
-
-# @syms n; Recurrences.petkovsek([2*n*(n+1), -(n^2 +3*n-2), n-1], n)
-
-# # algpoly([3, -n, n-1], 0*n, n)
-# # algpoly([n-1, -n, 3], 0*n, n)
-# println("alghyper: ", [tohg(sol, n) for sol in alghyper([2*n*(n+1), -(n^2 +3*n-2), n-1], n)])
-# println("algpoly: ", algpoly([n*(n + 1), -1*n^2 - 3*n + 2, 2*n - 2], 0*n,n))

@@ -1,9 +1,12 @@
-function rational_form(T::Matrix{S}, σ, σ_inv, δ) where {S}
+
+eye(T, s) = [i == j ? one(T) : zero(T) for i in 1:s, j in 1:s]
+
+function rational_form(T::MatrixElem, σ, σ_inv, δ)
     n = size(T, 1)
     i0 = 1
     i = 1
     # B = eye(S, n)
-    B = Array(Diagonal(ones(S, n)))
+    B = identity_matrix(T)
     while i < n
         j = i + 1
         while j <= n && T[i,j] == 0
@@ -36,7 +39,7 @@ function rational_form(T::Matrix{S}, σ, σ_inv, δ) where {S}
     return T, B
 end
 
-function transformP(T::Matrix{S}, i0::Int, i::Int, k::Int, B::Matrix{S}) where {S}
+function transformP(T::MatrixElem, i0::Int, i::Int, k::Int, B::MatrixElem)
     n = size(T, 1)
     for j in i0:n
         T[j,i], T[j,k] = T[j,k], T[j,i]
@@ -52,9 +55,9 @@ function transformP(T::Matrix{S}, i0::Int, i::Int, k::Int, B::Matrix{S}) where {
     return T, B
 end
 
-function transformR(T::Matrix{S}, i0::Int, B::Matrix{S}) where {S}
+function transformR(T::MatrixElem, i0::Int, B::MatrixElem)
     n = size(T, 1)
-    c = zeros(S, n)
+    c = zeros(base_ring(T), n)
     for i in i0:n
         c[i] = T[i,n]
     end
@@ -96,17 +99,18 @@ function transformR(T::Matrix{S}, i0::Int, B::Matrix{S}) where {S}
     return T, B
 end
 
-function transform_lemma2(T::Matrix{S}, i0::Int, i::Int, l::Int, σ, σ_inv, δ, B::Matrix{S}) where {S}
+function transform_lemma2(T::MatrixElem, i0::Int, i::Int, l::Int, σ, σ_inv, δ, B::MatrixElem)
     n = size(T, 1)
     T, B = transformP(T, i0, i+1, l, B)
-    a = σ_inv(1/T[i,i+1])
+    a = σ_inv(inv(T[i,i+1]))
+
     for j in i:n
         T[j,i+1] *= σ(a) # D1
     end
     for j in i0:n
-        T[i+1,j] /= a # D2
+        T[i+1,j] //= a # D2
     end
-    T[i+1,i+1] += δ(a) / a # D3
+    T[i+1,i+1] += δ(a) * inv(a) # D3
     for j in 1:n
         B[j,i+1] *= a # basis change
     end
@@ -146,7 +150,7 @@ function transform_lemma2(T::Matrix{S}, i0::Int, i::Int, l::Int, σ, σ_inv, δ,
     return T, B
 end
 
-function transform_lemma3(T::Matrix{S}, i0::Int, i::Int, σ, δ, B::Matrix{S}) where {S}
+function transform_lemma3(T::MatrixElem, i0::Int, i::Int, σ, δ, B::MatrixElem)
     n = size(T, 1)
     for l in i:-1:i0+1
         for k in i+1:n
@@ -165,7 +169,7 @@ function transform_lemma3(T::Matrix{S}, i0::Int, i::Int, σ, δ, B::Matrix{S}) w
     return T, B
 end
 
-function transform_lemma4(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ, B::Matrix{S}) where {S}
+function transform_lemma4(T::MatrixElem, i0::Int, i::Int, k::Int, σ, σ_inv, δ, B::MatrixElem)
     n = size(T, 1)
     for l in i0:k
         a = σ_inv(-T[k,l])
@@ -211,7 +215,7 @@ function transform_lemma4(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
     return T, B
 end
 
-function transform_lemma5(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ, B::Matrix{S}) where {S}
+function transform_lemma5(T::MatrixElem, i0::Int, i::Int, k::Int, σ, σ_inv, δ, B::MatrixElem)
     n = size(T, 1)
     T, B = transformP(T, i0, k, n, B)
 
@@ -221,9 +225,9 @@ function transform_lemma5(T::Matrix{S}, i0::Int, i::Int, k::Int, σ, σ_inv, δ,
     end
     T[n,i0] = 1 # D2
     for j in i+1:n
-        T[n,j] /= a
+        T[n,j] //= a
     end
-    T[n,n] += δ(a) / a # D3
+    T[n,n] += δ(a) // a # D3
     for j in 1:n
     # for j in i0:n
         B[j,n] *= a # basis change
